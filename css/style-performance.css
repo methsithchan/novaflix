@@ -1,0 +1,215 @@
+/* Performance Mode Stylesheet - Lightweight alternatives for low-end devices */
+
+/* ========================================
+   PERFORMANCE MODE STYLES
+   Applied when .performance-mode class is on <html>
+   ======================================== */
+
+/* Replace backdrop-blur with solid backgrounds */
+.performance-mode .glass-panel {
+    background: rgba(20, 20, 20, 0.95) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.performance-mode header.black-bg {
+    background: rgba(5, 5, 5, 0.95) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.performance-mode .modal-glass-container {
+    background: rgba(20, 20, 20, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.performance-mode .search-input {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: none !important;
+}
+
+/* Simplify all backdrop-blur elements */
+.performance-mode [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* Reduce shadow complexity */
+.performance-mode .glass-panel,
+.performance-mode .modal-glass-container {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.performance-mode .movie-item.group:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Disable complex animations */
+.performance-mode .animate-fade-in-up,
+.performance-mode .animate-fade-in-scale,
+.performance-mode .animate-in {
+    animation: none !important;
+}
+
+/* Simplify transitions */
+.performance-mode .movie-item,
+.performance-mode .liquid-button,
+.performance-mode .nav-item {
+    transition: transform 0.2s ease, opacity 0.2s ease !important;
+}
+
+/* Disable hover scale effects on low-end devices */
+.performance-mode .movie-item.group:hover {
+    transform: scale(1.05) !important; /* Reduced from 1.1 */
+}
+
+.performance-mode .liquid-button:hover {
+    transform: scale(1.02) !important; /* Reduced from 1.05 */
+}
+
+/* Remove gradient backgrounds */
+.performance-mode body {
+    background-image: none !important;
+    background-color: #050505 !important;
+}
+
+/* Simplify banner fade */
+.performance-mode .banner_fadeBottom {
+    background: linear-gradient(180deg, transparent 70%, #141414 100%) !important;
+}
+
+/* Disable banner trailer transitions in performance mode */
+.performance-mode .banner-trailer-overlay {
+    transition: opacity 0.3s ease !important;
+}
+
+/* Reduce banner content animation */
+.performance-mode .banner-content {
+    transition: transform 0.4s ease, opacity 0.3s ease !important;
+}
+
+/* Optimize search dropdown */
+.performance-mode .search-results-dropdown {
+    background: rgba(20, 20, 20, 0.98) !important;
+    backdrop-filter: none !important;
+}
+
+/* Simplify mobile effects */
+.performance-mode .hide-scrollbar {
+    scrollbar-width: thin;
+}
+
+/* Remove text shadows for better performance */
+.performance-mode [class*="drop-shadow"],
+.performance-mode [style*="text-shadow"] {
+    text-shadow: none !important;
+    filter: none !important;
+}
+
+/* Optimize image rendering */
+.performance-mode img {
+    image-rendering: auto;
+    image-rendering: crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+}
+
+/* ========================================
+   REDUCED MOTION SUPPORT
+   Respects user's OS-level preference
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    /* Disable all custom animations */
+    .animate-fade-in-up,
+    .animate-fade-in-scale,
+    .animate-in,
+    .fade-in,
+    .slide-in-from-bottom-8,
+    .slide-in-from-right {
+        animation: none !important;
+    }
+    
+    }
+}
+
+/* ========================================
+   GPU OPTIMIZATION HINTS
+   ======================================== */
+
+/* Only use will-change on elements that actually need it */
+.performance-mode .movie-item:hover {
+    will-change: transform;
+}
+
+.performance-mode .liquid-button:hover {
+    will-change: transform;
+}
+
+/* Remove will-change after animation completes */
+.performance-mode .movie-item:not(:hover),
+.performance-mode .liquid-button:not(:hover) {
+    will-change: auto;
+}
+
+/* Force GPU acceleration only where needed */
+.performance-mode .banner-section,
+.performance-mode .modal-glass-container {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+/* ========================================
+   MOBILE PERFORMANCE OPTIMIZATIONS
+   ======================================== */
+
+@media (max-width: 768px) {
+    .performance-mode .banner-section {
+        mask-image: none !important;
+        -webkit-mask-image: none !important;
+    }
+    
+    /* Reduce mobile animations further */
+    .performance-mode .mobile-detail-content {
+        animation: none !important;
+    }
+    
+    /* Simplify mobile gradients */
+    .performance-mode [class*="gradient"] {
+        background: rgba(5, 5, 5, 0.9) !important;
+    }
+}
+
+/* ========================================
+   UTILITY: PERFORMANCE INDICATORS
+   ======================================== */
+
+/* Optional: Show performance mode indicator (for debugging) */
+.performance-mode-indicator {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(34, 197, 94, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    z-index: 9999;
+    display: none;
+}
+
+.performance-mode .performance-mode-indicator {
+    display: block;
+}

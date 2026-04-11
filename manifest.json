@@ -1,0 +1,27 @@
+{
+    "name": "NovaFlix",
+    "short_name": "NovaFlix",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#050505",
+    "theme_color": "#050505",
+    "description": "Watch movies, TV shows, and F1 live streams.",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "assets/icons/favicon.png",
+            "sizes": "64x64 32x32 24x24 16x16",
+            "type": "image/png"
+        },
+        {
+            "src": "assets/img/nflix.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "assets/img/nflix.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

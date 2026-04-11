@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaFlix Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <meta name="theme-color" content="#E50914" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.10.3/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="lib/supabaseClient.js"></script>
+    <script src="lib/auth.js"></script>
+    <script src="lib/db.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+            color: #fff;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-field {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #E50914;
+        }
+    </style>
+</head>
+
+<body x-data="adminPanel()" x-init="init()">
+
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <header class="flex justify-between items-center mb-8">
+            <div class="flex items-center gap-3">
+                <img src="assets/img/nflix.png" alt="NovaFlix" class="h-8">
+                <span
+                    class="text-xs uppercase font-bold tracking-widest text-red-500 bg-red-500/10 px-2 py-1 rounded">Admin
+                    Portal</span>
+            </div>
+            <a href="index.html" class="text-sm text-gray-400 hover:text-white transition">Back to App</a>
+        </header>
+
+        <!-- Auth Check Overlay -->
+        <div x-show="!authorized" class="fixed inset-0 bg-black z-50 flex items-center justify-center">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto mb-4"></div>
+                <p class="text-gray-400">Verifying Admin Access...</p>
+            </div>
+        </div>
+
+        <div x-show="authorized" style="display: none;">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+                <!-- Form Section -->
+                <div class="md:col-span-1 space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <h2 class="text-xl font-bold mb-4"
+                            x-text="editingItem ? 'Edit Content' : 'Add Private Content'"></h2>
+
+                        <div class="space-y-4">
+                            <!-- TMDB Fetcher -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Auto-Fill from TMDB
+                                    (Optional)</label>
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="tmdbId" placeholder="TMDB ID" class="input-field">
+                                    <select x-model="tmdbType" class="input-field w-24">
+                                        <option value="movie">Movie</option>
+                                        <option value="tv">TV</option>
+                                    </select>
+                                </div>
+                                <button @click="fetchTMDBMetadata()"
+                                    class="mt-2 w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 text-xs font-bold py-2 rounded transition">
+                                    Fetch Metadata
+                                </button>
+                            </div>
+
+                            <hr class="border-white/10 my-4">
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Title</label>
+                                <input type="text" x-model="form.title" class="input-field">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Overview</label>
+                                <textarea x-model="form.overview" rows="3" class="input-field"></textarea>
+                            </div>
+
+                            <!-- Images -->
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Poster URL</label>
+                                    <input type="text" x-model="form.poster_path" placeholder="/path or http..."
+                                        class="input-field text-xs">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Backdrop URL</label>
+                                    <input type="text" x-model="form.backdrop_path" placeholder="/path or http..."
+                                        class="input-field text-xs">
+                                </div>
+                            </div>
+
+                            <!-- Video Source -->
+                            <div class="p-3 bg-red-900/10 border border-red-500/20 rounded-lg">
+                                <label class="block text-xs font-bold text-red-400 mb-1">Private Video URL
+                                    (m3u8/mp4) or Iframe Embed Code</label>
+                                <input type="text" x-model="form.video_url" placeholder="https://..."
+                                    class="input-field border-red-500/30 focus:border-red-500">
+                            </div>
+
+                            <!-- Access Control -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Allowed Users (Comma separated
+                                    emails)</label>
+                                <textarea x-model="allowedEmailsInput" rows="2"
+                                    placeholder="user1@example.com, user2@example.com" class="input-field"></textarea>
+                            </div>
+
+                            <!-- Extra Metadata -->
+                            <div class="grid grid-cols-2 gap-2 pb-2 border-b border-white/5 mb-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Media Type</label>
+                                    <select x-model="form.media_type" class="input-field text-xs">
+                                        <option value="movie">Movie</option>
+                                        <option value="tv">TV Show</option>
+                                        <option value="play">Stage Play</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Year</label>
+                                    <input type="number" x-model="form.year" placeholder="2024"
+                                        class="input-field text-xs">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Cast (Comma separated)</label>
+                                <input type="text" x-model="form.cast_input" placeholder="Actor 1, Actor 2..."
+                                    class="input-field text-xs mb-2">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Logo URL</label>
+                                    <input type="text" x-model="form.logo_path" placeholder="Logo image..."
+                                        class="input-field text-xs">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Trailer URLs (comma
+                                        separated)</label>
+                                    <input type="text" x-model="form.trailer_url" placeholder="YouTube/MP4..."
+                                        class="input-field text-xs">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Badges (Comma separated, e.g.
+                                    HD, CC, Dolby ATMOS)</label>
+                                <input type="text" x-model="form.badges_input" placeholder="HD, CC, Dolby Vision..."
+                                    class="input-field text-xs">
+                            </div>
+
+                            <div class="flex gap-2 pt-2">
+                                <button @click="saveContent()"
+                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded transition">
+                                    <span x-text="loading ? 'Saving...' : 'Save Content'"></span>
+                                </button>
+                                <button x-show="editingItem" @click="resetForm()"
+                                    class="bg-white/10 hover:bg-white/20 text-white px-4 rounded transition">
+                                    Cancel
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List Section -->
+                <div class="md:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Existing Content</h2>
+                        <button @click="refreshList()" class="text-xs text-gray-400 hover:text-white">Refresh</button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <template x-if="items.length === 0">
+                            <div class="text-gray-500 text-center py-10">No private content found.</div>
+                        </template>
+
+                        <template x-for="item in items" :key="item.id">
+                            <div class="glass-panel p-4 rounded-xl flex gap-4 items-start group">
+                                <img :src="item.poster_path ? (item.poster_path.startsWith('http') ? item.poster_path : (item.poster_path.startsWith('/') ? 'https://image.tmdb.org/t/p/w92'+item.poster_path : item.poster_path)) : 'https://placehold.co/92x138/222/fff?text=No+Img'"
+                                    class="w-16 h-24 object-cover rounded bg-gray-800">
+
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="font-bold text-lg truncate" x-text="item.title"></h3>
+                                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                                            <button @click="editItem(item)"
+                                                class="text-xs bg-blue-600/20 text-blue-400 px-2 py-1 rounded hover:bg-blue-600 hover:text-white">Edit</button>
+                                            <button @click="deleteItem(item.id)"
+                                                class="text-xs bg-red-600/20 text-red-400 px-2 py-1 rounded hover:bg-red-600 hover:text-white">Delete</button>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 line-clamp-2 mt-1" x-text="item.overview"></p>
+                                    <div
+                                        class="mt-2 text-[10px] text-gray-400 font-mono bg-white/5 p-2 rounded truncate">
+                                        <span class="text-gray-500">Video:</span> <span x-text="item.video_url"></span>
+                                    </div>
+                                    <div class="mt-1 flex gap-1 flex-wrap">
+                                        <template x-for="email in (item.allowed_emails || [])">
+                                            <span
+                                                class="px-1.5 py-0.5 bg-green-900/30 border border-green-500/20 text-green-400 text-[9px] rounded"
+                                                x-text="email"></span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS (Reused) -->
+    <div class="fixed bottom-5 right-5 z-[200] flex flex-col gap-2" x-data="{ toasts: [] }"
+        @show-toast.window="toasts.push({id: Date.now(), msg: $event.detail.message, type: $event.detail.type || 'success'}); setTimeout(() => { toasts.shift() }, 3000)">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="px-6 py-3 rounded-lg shadow-lg backdrop-blur-md border border-white/10 text-sm font-medium"
+                :class="toast.type === 'error' ? 'bg-red-900/80 text-white' : 'bg-[#141414]/90 text-white border-l-4 border-l-green-500'">
+                <span x-text="toast.msg"></span>
+            </div>
+        </template>
+    </div>
+
+    <script>
+        function adminPanel() {
+            return {
+                authorized: false,
+                user: null,
+                items: [],
+                loading: false,
+                editingItem: null,
+
+                // Form Data
+                tmdbId: '',
+                tmdbType: 'movie',
+                allowedEmailsInput: '',
+                form: {
+                    title: '',
+                    overview: '',
+                    poster_path: '',
+                    backdrop_path: '',
+                    video_url: '',
+                    logo_path: '',
+                    trailer_url: '',
+                    play_type: 'direct',
+                    media_type: 'movie',
+                    year: null,
+                    cast_input: '', // Temporary for input
+                    badges_input: '', // Temporary for input (HD, CC, Dolby...)
+                    tmdb_id: null
+                },
+
+                async init() {
+                    // Auth Check
+                    this.user = await auth.getUser();
+
+                    // STRICT ADMIN CHECK
+                    const ADMIN_EMAILS = CONFIG.ADMIN_EMAILS || [];
+
+                    if (this.user && ADMIN_EMAILS.includes(this.user.email)) {
+                        this.authorized = true;
+                        this.refreshList();
+                    } else {
+                        console.warn("Unauthorized access attempt by:", this.user ? this.user.email : "Guest");
+                        // Redirect unauthorized users to home
+                        window.location.href = 'index.html';
+                    }
+                },
+
+                async refreshList() {
+                    const { data, error } = await db.getAllPrivateContent();
+                    if (error) {
+                        this.$dispatch('show-toast', { message: 'Error loading content: ' + error.message, type: 'error' });
+                    } else {
+                        this.items = data;
+                    }
+                },
+
+                async fetchTMDBMetadata() {
+                    if (!this.tmdbId) return;
+                    const apiKey = CONFIG.TMDB_API_KEY;
+                    // Append credits to get cast
+                    const url = `https://api.themoviedb.org/3/${this.tmdbType}/${this.tmdbId}?api_key=${apiKey}&append_to_response=credits&language=en-US`;
+
+                    try {
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error('TMDB Item not found');
+                        const data = await res.json();
+
+                        this.form.title = data.title || data.name;
+                        this.form.overview = data.overview;
+                        this.form.poster_path = data.poster_path;
+                        this.form.backdrop_path = data.backdrop_path;
+                        this.form.media_type = this.tmdbType;
+                        this.form.tmdb_id = data.id.toString();
+
+                        // Extract Year
+                        const date = data.release_date || data.first_air_date;
+                        if (date) this.form.year = parseInt(date.substring(0, 4));
+
+                        // Extract Cast (Top 5)
+                        if (data.credits && data.credits.cast) {
+                            this.form.cast_input = data.credits.cast.slice(0, 5).map(c => c.name).join(', ');
+                        }
+
+                        this.$dispatch('show-toast', { message: 'Metadata fetched!', type: 'success' });
+                    } catch (e) {
+                        this.$dispatch('show-toast', { message: e.message, type: 'error' });
+                    }
+                },
+
+                async saveContent() {
+                    if (!this.form.title || !this.form.video_url) {
+                        this.$dispatch('show-toast', { message: 'Title and Video URL are required.', type: 'error' });
+                        return;
+                    }
+                    this.loading = true;
+
+                    // Process Emails
+                    const allowedEmails = this.allowedEmailsInput.split(',').map(e => e.trim()).filter(e => e.length > 0 && e.includes('@'));
+
+                    // Process Cast
+                    const castArray = this.form.cast_input.split(',').map(c => c.trim()).filter(c => c.length > 0);
+
+                    // Process Badges
+                    const badgesArray = this.form.badges_input ? this.form.badges_input.split(',').map(b => b.trim()).filter(b => b.length > 0) : [];
+
+                    // Prepare Payload (remove temporary input fields)
+                    const payload = {
+                        ...this.form,
+                        year: this.form.year ? parseInt(this.form.year) : null,
+                        cast_members: castArray, // Save as 'cast_members' to avoid SQL keyword issues
+                        badges: badgesArray, // Save as array
+                        trailer_urls: this.form.trailer_url ? this.form.trailer_url.split(',').map(t => t.trim()).filter(t => t.length > 0) : [],
+                        allowed_emails: allowedEmails
+                    };
+                    // Keep primary trailer_url for backward compatibility
+                    if (payload.trailer_urls.length > 0) {
+                        payload.trailer_url = payload.trailer_urls[0];
+                    }
+                    delete payload.cast_input;
+                    delete payload.badges_input;
+                    delete payload.cast; // Ensure we don't send the old key if it exists in form
+
+                    if (this.editingItem) {
+                        payload.id = this.editingItem.id;
+                    }
+
+                    const { data, error } = await db.upsertPrivateContent(payload);
+
+                    if (error) {
+                        this.$dispatch('show-toast', { message: 'Error saving: ' + error.message, type: 'error' });
+                    } else {
+                        this.$dispatch('show-toast', { message: 'Content saved successfully!', type: 'success' });
+                        this.resetForm();
+                        this.refreshList();
+                    }
+                    this.loading = false;
+                },
+
+                editItem(item) {
+                    this.editingItem = item;
+                    // Populate form
+                    this.form = { ...item };
+                    this.form.cast_input = (item.cast_members || item.cast || []).join(', '); // Handle both new and old keys
+                    this.form.badges_input = (item.badges || []).join(', '); // Populate badges
+                    // Populate trailer URL(s)
+                    if (item.trailer_urls && item.trailer_urls.length > 0) {
+                        this.form.trailer_url = item.trailer_urls.join(', ');
+                    } else {
+                        this.form.trailer_url = item.trailer_url || '';
+                    }
+
+                    this.tmdbId = item.tmdb_id || '';
+                    this.allowedEmailsInput = (item.allowed_emails || []).join(', ');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+
+                async deleteItem(id) {
+                    if (!confirm('Are you sure you want to delete this content?')) return;
+
+                    const { error } = await db.deletePrivateContent(id);
+                    if (error) {
+                        this.$dispatch('show-toast', { message: 'Error deleting: ' + error.message, type: 'error' });
+                    } else {
+                        this.$dispatch('show-toast', { message: 'Deleted.', type: 'success' });
+                        this.refreshList();
+                    }
+                },
+
+                resetForm() {
+                    this.editingItem = null;
+                    this.tmdbId = '';
+                    this.allowedEmailsInput = '';
+                    this.form = {
+                        title: '',
+                        overview: '',
+                        poster_path: '',
+                        backdrop_path: '',
+                        video_url: '',
+                        logo_path: '',
+                        trailer_url: '',
+                        play_type: 'direct',
+                        media_type: 'movie',
+                        year: null,
+                        cast_input: '',
+                        badges_input: '',
+                        tmdb_id: null
+                    };
+                }
+            }
+        }
+
+    </script>
+</body>
+
+</html>
