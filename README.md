@@ -2,6 +2,12 @@
 
 NovaFlix is a modern web-based streaming interface for movies, TV shows, and F1 live streams. It features a premium glassmorphic design and is optimized for both desktop and mobile devices.
 
+> ⚠️ **Status Notice:** This project is **no longer actively maintained**. The live demo is available below, but certain dynamic features (like live streams or API integrations) may degrade over time.
+
+## 🚀 Live Demo
+
+Check out the deployed application here: [https://novaflix-eta.vercel.app](https://novaflix-eta.vercel.app)
+
 ## Features
 
 - **Movies & TV Shows**: Browse and stream content powered by TMDB metadata.
