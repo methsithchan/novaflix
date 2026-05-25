@@ -20,8 +20,19 @@ create table private_content (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Admin allowlist used by RLS. Keep this in the database, not only in client JS.
+create table app_admins (
+  email text primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+insert into app_admins (email)
+values ('methsithc7@gmail.com')
+on conflict (email) do nothing;
+
 -- Enable RLS
 alter table private_content enable row level security;
+alter table app_admins enable row level security;
 
 -- Policy: Users can see content if their email is in the allowed list
 create policy "Users can view private content if allowed"
@@ -30,9 +41,24 @@ create policy "Users can view private content if allowed"
     auth.jwt() ->> 'email' = any(allowed_emails)
   );
 
--- Policy: Allow all authenticated users to insert/update/delete (Protected by UI Logic for now)
--- ideally restricted to specific admin UUIDs
-create policy "Authenticated users can manage private content"
+create policy "Admins can view admin allowlist"
+  on app_admins for select
+  using (auth.jwt() ->> 'email' = email);
+
+-- Policy: Only database allowlisted admins can manage private content.
+-- Client-side admin checks are UX only; this policy is the actual authorization boundary.
+create policy "Admin users can manage private content"
   on private_content
-  using ( auth.role() = 'authenticated' )
-  with check ( auth.role() = 'authenticated' );
+  for all
+  using (
+    exists (
+      select 1 from app_admins
+      where app_admins.email = auth.jwt() ->> 'email'
+    )
+  )
+  with check (
+    exists (
+      select 1 from app_admins
+      where app_admins.email = auth.jwt() ->> 'email'
+    )
+  );

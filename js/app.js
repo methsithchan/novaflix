@@ -90,6 +90,39 @@ function app() {
             window.location.href = 'settings.html';
         },
 
+        escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
+        },
+
+        sanitizeMediaUrl(value) {
+            if (!value) return '';
+
+            try {
+                const url = new URL(String(value).trim(), window.location.origin);
+                if (!['https:', 'http:', 'blob:'].includes(url.protocol)) return '';
+                return url.href;
+            } catch (error) {
+                console.warn('Blocked invalid media URL:', value);
+                return '';
+            }
+        },
+
+        extractIframeSrc(value) {
+            if (!value) return '';
+
+            const source = String(value).trim();
+            if (!source.startsWith('<iframe')) {
+                return this.sanitizeMediaUrl(source);
+            }
+
+            const template = document.createElement('template');
+            template.innerHTML = source;
+            const iframe = template.content.querySelector('iframe');
+            return this.sanitizeMediaUrl(iframe ? iframe.getAttribute('src') : '');
+        },
+
         // Scroll handler with debouncing for performance
         scrollTimeout: null,
         handleScroll() {
@@ -399,16 +432,26 @@ function app() {
 
             // Check for Iframe Embed
             if (item.video_url && item.video_url.trim().startsWith('<iframe')) {
+                const embedUrl = this.extractIframeSrc(item.video_url);
+                if (!embedUrl) {
+                    this.$dispatch('show-toast', { message: 'Invalid embed URL blocked.', type: 'error' });
+                    return;
+                }
+
                 this.showInfoModal = true;
                 this.isPlayingInModal = true;
                 this.isDirectVideo = false;
                 this.isVideoJs = false;
                 this.isEmbed = false;
                 this.embedCode = '';
-                this.modalPlayerUrl = '';
-                this.isEmbed = true; // This line was likely intended to be here
-                this.embedCode = item.video_url;
+                this.modalPlayerUrl = embedUrl;
                 document.body.style.overflow = 'hidden';
+                return;
+            }
+
+            const videoUrl = this.sanitizeMediaUrl(item.video_url);
+            if (!videoUrl) {
+                this.$dispatch('show-toast', { message: 'Invalid video URL blocked.', type: 'error' });
                 return;
             }
 
@@ -421,7 +464,7 @@ function app() {
             document.body.style.overflow = 'hidden';
 
             this.$nextTick(() => {
-                this.initVideoJsPlayer(item.video_url);
+                this.initVideoJsPlayer(videoUrl);
             });
         },
 
@@ -524,22 +567,23 @@ function app() {
             if (!container) return;
 
             const itemsHTML = this.addedForYouItems.map(item => {
-                const title = item.title;
+                const title = this.escapeHtml(item.title);
                 // Use provided poster or fallback
                 let posterPath = 'https://placehold.co/342x513/101010/FFF?text=Added+For+You';
                 if (item.poster_path) {
                     posterPath = item.poster_path.startsWith('http') ? item.poster_path : (item.poster_path.startsWith('/') ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : item.poster_path);
                 }
+                posterPath = this.sanitizeMediaUrl(posterPath) || 'https://placehold.co/342x513/101010/FFF?text=Added+For+You';
 
                 return `
                 <div class="movie-item group cursor-pointer" @click="window.appInstance.handlePrivateItemClick('${item.id}')">
                     <div class="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#222]">
-                        <img src="${posterPath}" class="movie-item-img w-full h-full object-cover transition duration-500 group-hover:scale-110" loading="lazy" alt="${title.replace(/"/g, '&quot;')}">
+                        <img src="${posterPath}" class="movie-item-img w-full h-full object-cover transition duration-500 group-hover:scale-110" loading="lazy" alt="${title}">
                         
                         <!-- Liquid Overlay -->
                         <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                             <p class="text-white font-bold leading-tight transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-black drop-shadow-md">
-                                ${title.replace(/"/g, '&quot;')}
+                                ${title}
                             </p>
                             <div class="flex items-center gap-2 mt-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
                                 <span class="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded-full font-bold">Private</span>
