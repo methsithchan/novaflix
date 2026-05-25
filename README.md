@@ -39,5 +39,16 @@ Check out the deployed application here: [https://novaflix-eta.vercel.app](https
 
 The project is structured to be ready for static hosting services like GitHub Pages or Vercel.
 
+## Credits
+
+Based on Nova by @ambr0sial.
+Modified and expanded with:
+- Supabase auth
+- F1 integration
+- Admin panel
+- Performance mode
+- PWA support
+
 ---
+
 Built with ❤️ by Methsith7
