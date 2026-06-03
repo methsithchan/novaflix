@@ -50,6 +50,7 @@
 
 
     <script src="js/config.js"></script>
+    <script src="js/player.js"></script>
     <script src="lib/supabaseClient.js"></script>
     <script src="lib/auth.js"></script>
     <script src="lib/db.js"></script>
@@ -72,6 +73,7 @@
 
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/style-performance.css">
+    <link rel="stylesheet" href="css/player.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#050505">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -114,7 +116,7 @@
 <body class="bg-black text-white selection:bg-red-500 selection:text-white" x-data="app()" x-init="init()"
     @scroll.window="handleScroll()" @keydown.meta.k.prevent="document.getElementById('searchInputGlobal').focus()"
     @keydown.ctrl.k.prevent="document.getElementById('searchInputGlobal').focus()"
-    @play-f1-stream.window="playGlobalVideo($event.detail.url, $event.detail.isDirect)">
+    @play-f1-stream.window="playGlobalVideo($event.detail.url, $event.detail.isDirect, $event.detail.title)">
     <div id="global-error-box"></div>
 
 
@@ -2189,32 +2191,142 @@
 
     <!-- STANDALONE VIDEO PLAYER OVERLAY (GLOBAL SCOPE) -->
     <template x-if="isPlayingInModal">
-        <div class="fixed inset-0 z-[9999] w-screen h-screen bg-black flex flex-col pointer-events-auto">
-            <div class="relative flex-1 bg-black w-full h-full">
+        <div id="nova-player-root"
+            class="nova-player fixed inset-0 z-[9999] w-screen h-screen"
+            :class="{ 'nova-player--embed': playerMode === 'embed', 'nova-player--native': playerMode === 'native' }"
+            @mousemove="onPlayerActivity()"
+            @touchstart="onPlayerActivity()"
+            @keydown.escape.window="closeInfoModal()"
+            @keydown.window="onPlayerKeydown($event)">
+
+            <div class="nova-player__stage">
                 <iframe id="modalPlayerIframeNtflx"
                     x-show="!isDirectVideo && !isVideoJs && modalPlayerUrl && modalPlayerUrl !== 'about:blank'"
-                    :src="modalPlayerUrl" class="w-full h-full border-0 absolute inset-0" allowfullscreen
+                    :src="modalPlayerUrl" allowfullscreen
                     allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
-                <video id="modalPlayerVideo" x-show="isDirectVideo && !isVideoJs" class="w-full h-full absolute inset-0"
-                    controls playsinline autoplay></video>
 
-                <!-- Native HTML5 Video Player (replacing Video.js for better compatibility) -->
-                <video x-show="isVideoJs" id="hls-player" class="w-full h-full bg-black" controls autoplay playsinline
-                    preload="auto" controlslist="nodownload">
-                    Your browser does not support the video tag.
-                </video>
+                <video id="modalPlayerVideo" x-show="isDirectVideo && !isVideoJs"
+                    playsinline autoplay @click="playerTogglePlay()"
+                    @waiting="playerLoading = true" @canplay="playerLoading = false"
+                    @play="playerPaused = false" @pause="playerPaused = true"></video>
 
+                <video x-show="isVideoJs" id="hls-player" autoplay playsinline preload="auto"
+                    @click="playerTogglePlay()"
+                    @waiting="playerLoading = true" @canplay="playerLoading = false"
+                    @play="playerPaused = false" @pause="playerPaused = true"></video>
+
+                <div class="nova-player__loading" x-show="playerLoading && playerMode === 'native'">
+                    <div class="nova-player__loading-spinner"></div>
+                </div>
             </div>
 
-            <!-- Global Video Close Button -->
-            <button @click="closeInfoModal()"
-                class="fixed top-6 right-6 p-3 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition z-[10000] group border border-white/20 pointer-events-auto shadow-2xl">
-                <svg class="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
+            <div class="nova-player__chrome"
+                :class="{ 'nova-player__chrome--hidden': !playerControlsVisible }">
+                <div class="nova-player__top">
+                    <div class="flex items-center min-w-0 flex-1">
+                        <span class="nova-player__badge" x-show="playerMode === 'native'">HD</span>
+                        <span class="nova-player__title" x-text="playerTitle || 'Now Playing'"></span>
+                    </div>
+                    <button type="button" class="nova-player__btn" @click="playerToggleFullscreen()"
+                        title="Fullscreen" aria-label="Fullscreen">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                    </button>
+                    <button type="button" class="nova-player__btn" @click="closeInfoModal()" title="Close"
+                        aria-label="Close">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <button type="button" class="nova-player__center-play"
+                    :class="{ 'nova-player__center-play--hidden': !playerPaused || playerMode === 'embed' }"
+                    @click="playerTogglePlay()" aria-label="Play">
+                    <svg class="w-10 h-10 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                </button>
+
+                <div class="nova-player__bottom">
+                    <div class="nova-player__progress-wrap" @click="playerSeek($event)"
+                        @mousedown="playerStartSeek($event)" @touchstart.prevent="playerStartSeek($event)">
+                        <div class="nova-player__progress-track">
+                            <div class="nova-player__progress-buffer" :style="'width:' + playerBufferPercent + '%'">
+                            </div>
+                            <div class="nova-player__progress-fill" :style="'width:' + playerProgressPercent + '%'">
+                            </div>
+                            <div class="nova-player__progress-thumb" :style="'left:' + playerProgressPercent + '%'">
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="nova-player__embed-hint">Use the embedded player controls inside the frame</p>
+
+                    <div class="nova-player__controls-row">
+                        <button type="button" class="nova-player__btn" @click="playerTogglePlay()"
+                            :title="playerPaused ? 'Play' : 'Pause'" aria-label="Play or pause">
+                            <svg x-show="playerPaused" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                            <svg x-show="!playerPaused" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                            </svg>
+                        </button>
+
+                        <button type="button" class="nova-player__btn" @click="playerSkip(-10)" title="Back 10s"
+                            aria-label="Back 10 seconds">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+                            </svg>
+                        </button>
+
+                        <button type="button" class="nova-player__btn" @click="playerSkip(10)" title="Forward 10s"
+                            aria-label="Forward 10 seconds">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
+                            </svg>
+                        </button>
+
+                        <div class="nova-player__volume">
+                            <button type="button" class="nova-player__btn" @click="playerToggleMute()"
+                                :title="playerMuted ? 'Unmute' : 'Mute'" aria-label="Mute">
+                                <svg x-show="!playerMuted && playerVolume > 0.5" class="w-5 h-5" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15.536 8.464a5 5 0 010 7.072M12 6l-3-3H6v12h3l3-3V6z" />
+                                </svg>
+                                <svg x-show="playerMuted || playerVolume === 0" class="w-5 h-5" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                                </svg>
+                            </button>
+                            <input type="range" min="0" max="1" step="0.05" :value="playerVolume"
+                                @input="playerSetVolume($event.target.value)">
+                        </div>
+
+                        <span class="nova-player__time"
+                            x-text="playerFormatTime(playerCurrentTime) + ' / ' + playerFormatTime(playerDuration)"></span>
+
+                        <div class="nova-player__spacer"></div>
+
+                        <button type="button" class="nova-player__btn" @click="playerToggleFullscreen()"
+                            title="Fullscreen" aria-label="Fullscreen">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </template>
 

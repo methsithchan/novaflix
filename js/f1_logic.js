@@ -438,7 +438,7 @@ function f1App() {
             const url = replay.hls_url || replay.iframe_url;
             if (!url) return;
             const isDirect = !!(replay.hls_url && replay.hls_url.includes('.m3u8'));
-            this.$dispatch('play-f1-stream', { url, isDirect });
+            this.$dispatch('play-f1-stream', { url, isDirect, title: replay.title || 'F1 Replay' });
         },
 
         closeReplayModal() {

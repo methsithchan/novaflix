@@ -70,6 +70,23 @@ function app() {
         continueWatchingItems: [], MAX_CONTINUE_WATCHING: 12,
         showInfoModal: false, modalContent: null, modalSelectedSeason: 1, modalSelectedEpisode: null,
         episodesForModal: [], loadingEpisodes: false, loadingModal: false, isPlayingInModal: false, isDirectVideo: false, modalPlayerUrl: '',
+
+        // Custom player UI
+        playerTitle: '',
+        playerMode: 'embed',
+        playerPaused: true,
+        playerCurrentTime: 0,
+        playerDuration: 0,
+        playerVolume: 1,
+        playerMuted: false,
+        playerControlsVisible: true,
+        playerLoading: false,
+        playerProgressPercent: 0,
+        playerBufferPercent: 0,
+        _playerHideTimer: null,
+        _playerVideoEl: null,
+        _playerListeners: [],
+        _playerSeeking: false,
         activeSourceConfig: null, detailedItemsCache: {}, scrollStates: {},
         isVideoJs: false, videoJsPlayer: null,
         isEmbed: false, embedCode: '',
@@ -410,36 +427,264 @@ function app() {
             }
         },
 
+        // --- Custom player UI ---
+        playerFormatTime(seconds) {
+            return NovaPlayerUtils.formatTime(seconds);
+        },
+
+        getActivePlayerVideo() {
+            if (this.isDirectVideo && !this.isVideoJs) return document.getElementById('modalPlayerVideo');
+            if (this.isVideoJs) return document.getElementById('hls-player');
+            return null;
+        },
+
+        resetPlayerUi() {
+            if (this._playerHideTimer) {
+                clearTimeout(this._playerHideTimer);
+                this._playerHideTimer = null;
+            }
+            this._unbindPlayerVideo();
+            this.playerTitle = '';
+            this.playerMode = 'embed';
+            this.playerPaused = true;
+            this.playerCurrentTime = 0;
+            this.playerDuration = 0;
+            this.playerProgressPercent = 0;
+            this.playerBufferPercent = 0;
+            this.playerControlsVisible = true;
+            this.playerLoading = false;
+            this._playerSeeking = false;
+            if (document.fullscreenElement?.id === 'nova-player-root') {
+                document.exitFullscreen?.().catch(() => {});
+            }
+        },
+
+        startPlayerSession({ mode, title }) {
+            this.resetPlayerUi();
+            this.playerMode = mode;
+            this.playerTitle = title || 'Now Playing';
+            this.playerControlsVisible = true;
+            this._scheduleHidePlayerControls();
+            if (mode === 'native') {
+                this.$nextTick(() => this._bindPlayerVideo(this.getActivePlayerVideo()));
+            }
+        },
+
+        _unbindPlayerVideo() {
+            if (this._playerListeners?.length && this._playerVideoEl) {
+                this._playerListeners.forEach(({ el, event, handler }) => el.removeEventListener(event, handler));
+            }
+            this._playerListeners = [];
+            this._playerVideoEl = null;
+        },
+
+        _bindPlayerVideo(video) {
+            this._unbindPlayerVideo();
+            if (!video) return;
+            this._playerVideoEl = video;
+            video.volume = this.playerVolume;
+            video.muted = this.playerMuted;
+
+            const add = (event, handler) => {
+                video.addEventListener(event, handler);
+                this._playerListeners.push({ el: video, event, handler });
+            };
+
+            const sync = () => {
+                this.playerCurrentTime = video.currentTime;
+                this.playerDuration = video.duration || 0;
+                this.playerProgressPercent = NovaPlayerUtils.progressPercent(video.currentTime, video.duration);
+                if (video.buffered.length > 0 && video.duration) {
+                    const end = video.buffered.end(video.buffered.length - 1);
+                    this.playerBufferPercent = NovaPlayerUtils.progressPercent(end, video.duration);
+                }
+            };
+
+            add('timeupdate', sync);
+            add('loadedmetadata', sync);
+            add('durationchange', sync);
+            add('progress', sync);
+            add('play', () => { this.playerPaused = false; this.playerLoading = false; this._scheduleHidePlayerControls(); });
+            add('pause', () => { this.playerPaused = true; this.playerControlsVisible = true; });
+            add('waiting', () => { this.playerLoading = true; });
+            add('canplay', () => { this.playerLoading = false; });
+            sync();
+        },
+
+        onPlayerActivity() {
+            this.playerControlsVisible = true;
+            this._scheduleHidePlayerControls();
+        },
+
+        _scheduleHidePlayerControls() {
+            if (this._playerHideTimer) clearTimeout(this._playerHideTimer);
+            if (this.playerMode !== 'native' || this.playerPaused) return;
+            this._playerHideTimer = setTimeout(() => {
+                if (!this.playerPaused && this.isPlayingInModal) {
+                    this.playerControlsVisible = false;
+                }
+            }, 3200);
+        },
+
+        playerTogglePlay() {
+            if (this.playerMode === 'embed') return;
+            const video = this._playerVideoEl || this.getActivePlayerVideo();
+            if (!video) return;
+            if (video.paused) video.play().catch(() => {});
+            else video.pause();
+            this.onPlayerActivity();
+        },
+
+        playerSkip(seconds) {
+            const video = this._playerVideoEl || this.getActivePlayerVideo();
+            if (!video || !Number.isFinite(video.duration)) return;
+            video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + seconds));
+            this.onPlayerActivity();
+        },
+
+        playerToggleMute() {
+            const video = this._playerVideoEl || this.getActivePlayerVideo();
+            this.playerMuted = !this.playerMuted;
+            if (video) video.muted = this.playerMuted;
+        },
+
+        playerSetVolume(value) {
+            const vol = parseFloat(value);
+            this.playerVolume = vol;
+            this.playerMuted = vol === 0;
+            const video = this._playerVideoEl || this.getActivePlayerVideo();
+            if (video) {
+                video.volume = vol;
+                video.muted = this.playerMuted;
+            }
+        },
+
+        playerSeek(event) {
+            if (this._playerSeeking) return;
+            const video = this._playerVideoEl || this.getActivePlayerVideo();
+            if (!video || !video.duration) return;
+            const bar = event.currentTarget;
+            const rect = bar.getBoundingClientRect();
+            const clientX = event.clientX ?? event.touches?.[0]?.clientX;
+            if (clientX == null) return;
+            const pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+            video.currentTime = pct * video.duration;
+            this.onPlayerActivity();
+        },
+
+        playerStartSeek(event) {
+            this._playerSeeking = true;
+            this.playerSeek(event);
+            const onMove = (e) => this.playerSeek(e);
+            const onEnd = () => {
+                this._playerSeeking = false;
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+        },
+
+        playerToggleFullscreen() {
+            const root = document.getElementById('nova-player-root');
+            if (!root) return;
+            if (!document.fullscreenElement) {
+                root.requestFullscreen?.().catch(() => {});
+            } else {
+                document.exitFullscreen?.().catch(() => {});
+            }
+            this.onPlayerActivity();
+        },
+
+        onPlayerKeydown(event) {
+            if (!this.isPlayingInModal) return;
+            const tag = event.target?.tagName?.toLowerCase();
+            if (tag === 'input' || tag === 'textarea') return;
+            switch (event.key) {
+                case ' ':
+                case 'k':
+                    event.preventDefault();
+                    this.playerTogglePlay();
+                    break;
+                case 'f':
+                    event.preventDefault();
+                    this.playerToggleFullscreen();
+                    break;
+                case 'm':
+                    event.preventDefault();
+                    this.playerToggleMute();
+                    break;
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    this.playerSkip(-10);
+                    break;
+                case 'ArrowRight':
+                    event.preventDefault();
+                    this.playerSkip(10);
+                    break;
+                default:
+                    break;
+            }
+        },
+
+        attachHlsToPlayer(video, url) {
+            if (!video) return;
+            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+                if (this.hls) this.hls.destroy();
+                this.hls = new Hls();
+                this.hls.loadSource(url);
+                this.hls.attachMedia(video);
+                this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(() => {});
+                    this._bindPlayerVideo(video);
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => {
+                    video.play().catch(() => {});
+                    this._bindPlayerVideo(video);
+                }, { once: true });
+            }
+        },
+
         // Global Player Handler for F1 (via Event Bus)
-        playGlobalVideo(url, isDirect = false) {
+        playGlobalVideo(url, isDirect = false, title = '') {
             console.log("Playing Global Video:", url);
             this.showInfoModal = true;
             this.isPlayingInModal = true;
             this.isDirectVideo = isDirect;
-            this.isVideoJs = false; // Reset VideoJs flag
+            this.isVideoJs = false;
             this.modalPlayerUrl = isDirect ? '' : url;
             document.body.style.overflow = 'hidden';
 
-            // Dispose VideoJS if exists to prevent conflicts
             if (this.videoJsPlayer) {
                 this.videoJsPlayer.dispose();
                 this.videoJsPlayer = null;
             }
 
+            this.startPlayerSession({
+                mode: isDirect ? 'native' : 'embed',
+                title: title || this.currentStreamTitle || 'Now Playing',
+            });
+
             if (isDirect && url && url.includes('.m3u8')) {
+                this.playerLoading = true;
                 this.$nextTick(() => {
                     const video = document.getElementById('modalPlayerVideo');
                     if (!video) return;
-                    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-                        if (this.hls) this.hls.destroy();
-                        this.hls = new Hls();
-                        this.hls.loadSource(url);
-                        this.hls.attachMedia(video);
-                        this.hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
-                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                        video.src = url;
-                        video.addEventListener('loadedmetadata', () => video.play().catch(() => {}), { once: true });
-                    }
+                    this.attachHlsToPlayer(video, url);
+                });
+            } else if (isDirect && url) {
+                this.$nextTick(() => {
+                    const video = document.getElementById('modalPlayerVideo');
+                    if (!video) return;
+                    video.src = url;
+                    video.play().catch(() => {});
+                    this._bindPlayerVideo(video);
                 });
             }
         },
@@ -463,6 +708,7 @@ function app() {
                 this.embedCode = '';
                 this.modalPlayerUrl = embedUrl;
                 document.body.style.overflow = 'hidden';
+                this.startPlayerSession({ mode: 'embed', title: item.title || 'Now Playing' });
                 return;
             }
 
@@ -479,6 +725,7 @@ function app() {
             this.isEmbed = false;
             this.embedCode = '';
             document.body.style.overflow = 'hidden';
+            this.startPlayerSession({ mode: 'native', title: item.title || 'Now Playing' });
 
             this.$nextTick(() => {
                 this.initVideoJsPlayer(videoUrl);
@@ -508,17 +755,15 @@ function app() {
                 // Use native HTML5 video - no Video.js needed for simple MP4 files
                 videoElement.src = url;
                 videoElement.load();
+                this._bindPlayerVideo(videoElement);
 
-                // Attempt autoplay
                 const playPromise = videoElement.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
                         console.error('Autoplay failed:', error);
-                        // Autoplay blocked by browser - user needs to click play
                     });
                 }
 
-                // Add error listener
                 videoElement.onerror = (e) => {
                     console.error('Video playback error:', e);
                     const errorMsg = videoElement.error ?
@@ -1520,9 +1765,11 @@ function app() {
             console.log("closeInfoModal called.");
 
             if (this.isDirectVideo) {
-                this.stopStream(); // Handle HLS cleanup
-                return; // stopStream handles closing the modal state
+                this.stopStream();
+                return;
             }
+
+            this.resetPlayerUi();
 
             if (this.videoJsPlayer) {
                 this.videoJsPlayer.dispose();
@@ -2140,9 +2387,11 @@ function app() {
             };
 
             this.isPlayingInModal = true;
-            this.isDirectVideo = true; // Enable direct video mode
+            this.isDirectVideo = true;
             this.showInfoModal = true;
             document.body.style.overflow = 'hidden';
+            this.startPlayerSession({ mode: 'native', title: this.currentStreamTitle });
+            this.playerLoading = true;
 
             this.$nextTick(() => {
                 const video = document.getElementById('modalPlayerVideo');
@@ -2152,15 +2401,14 @@ function app() {
                     return;
                 }
 
-                if (Hls.isSupported()) {
-                    if (this.hls) {
-                        this.hls.destroy();
-                    }
+                if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+                    if (this.hls) this.hls.destroy();
                     this.hls = new Hls();
                     this.hls.loadSource(channel.uri);
                     this.hls.attachMedia(video);
-                    this.hls.on(Hls.Events.MANIFEST_PARSED, function () {
-                        video.play();
+                    this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        video.play().catch(() => {});
+                        this._bindPlayerVideo(video);
                     });
                     this.hls.on(Hls.Events.ERROR, (event, data) => {
                         console.error('HLS.js error:', data);
@@ -2183,9 +2431,10 @@ function app() {
                     });
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     video.src = channel.uri;
-                    video.addEventListener('loadedmetadata', function () {
-                        video.play();
-                    });
+                    video.addEventListener('loadedmetadata', () => {
+                        video.play().catch(() => {});
+                        this._bindPlayerVideo(video);
+                    }, { once: true });
                 } else {
                     this.$dispatch('show-toast', { message: 'Your browser does not support HLS video playback.', type: 'error' });
                 }
@@ -2206,13 +2455,13 @@ function app() {
                 this.hls = null;
             }
 
-            // Reset Main Modal State
+            this.resetPlayerUi();
             this.isPlayingInModal = false;
             this.isDirectVideo = false;
             this.showInfoModal = false;
             document.body.style.overflow = '';
-            this.modalPlayerUrl = ''; // Clear any previous modal player URL
-            this.currentStreamTitle = null; // Clear F1 stream title
+            this.modalPlayerUrl = '';
+            this.currentStreamTitle = null;
         },
 
         scrollToReplays() {
