@@ -1,0 +1,326 @@
+/* Novaflix custom video player */
+.nova-player {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.nova-player__stage {
+    position: absolute;
+    inset: 0;
+}
+
+.nova-player__stage iframe,
+.nova-player__stage video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: contain;
+    background: #000;
+}
+
+.nova-player__stage video {
+    cursor: pointer;
+}
+
+.nova-player__chrome {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+
+.nova-player__chrome--hidden {
+    opacity: 0;
+}
+
+.nova-player__chrome--hidden .nova-player__top,
+.nova-player__chrome--hidden .nova-player__bottom {
+    pointer-events: none;
+}
+
+.nova-player__chrome:not(.nova-player__chrome--hidden) .nova-player__top,
+.nova-player__chrome:not(.nova-player__chrome--hidden) .nova-player__bottom,
+.nova-player__chrome:not(.nova-player__chrome--hidden) .nova-player__center-play {
+    pointer-events: auto;
+}
+
+.nova-player__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+}
+
+.nova-player__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #fff;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: min(70vw, 520px);
+}
+
+.nova-player__badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--primary-red, #E50914);
+    background: rgba(229, 9, 20, 0.15);
+    border: 1px solid rgba(229, 9, 20, 0.35);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.5rem;
+}
+
+.nova-player__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(12px);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, border-color 0.2s;
+    pointer-events: auto;
+}
+
+.nova-player__btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.nova-player__btn:active {
+    transform: scale(0.94);
+}
+
+.nova-player__center-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    background: rgba(229, 9, 20, 0.92);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 32px rgba(229, 9, 20, 0.45);
+    transition: transform 0.2s, opacity 0.3s;
+    pointer-events: auto;
+    z-index: 15;
+}
+
+.nova-player__center-play:hover {
+    transform: translate(-50%, -50%) scale(1.06);
+}
+
+.nova-player__center-play--hidden {
+    opacity: 0;
+    pointer-events: none !important;
+}
+
+.nova-player__bottom {
+    padding: 0.75rem 1.25rem 1.25rem;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.92) 0%, transparent 100%);
+}
+
+.nova-player__progress-wrap {
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 0.35rem;
+    padding: 0.35rem 0;
+}
+
+.nova-player__progress-wrap:hover .nova-player__progress-fill {
+    background: var(--primary-red, #E50914);
+}
+
+.nova-player__progress-track {
+    position: relative;
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: visible;
+}
+
+.nova-player__progress-buffer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.15s linear;
+}
+
+.nova-player__progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.05s linear;
+}
+
+.nova-player__progress-wrap:hover .nova-player__progress-fill {
+    height: 6px;
+    margin-top: -1px;
+}
+
+.nova-player__progress-thumb {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    background: var(--primary-red, #E50914);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.nova-player__progress-wrap:hover .nova-player__progress-thumb {
+    opacity: 1;
+}
+
+.nova-player__controls-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nova-player__controls-row .nova-player__spacer {
+    flex: 1;
+}
+
+.nova-player__time {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.85);
+    min-width: 7.5rem;
+    text-align: center;
+}
+
+.nova-player__volume {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.nova-player__volume input[type="range"] {
+    width: 0;
+    opacity: 0;
+    transition: width 0.25s ease, opacity 0.2s;
+    accent-color: var(--primary-red, #E50914);
+    height: 4px;
+    cursor: pointer;
+}
+
+.nova-player__volume:hover input[type="range"],
+.nova-player__volume:focus-within input[type="range"] {
+    width: 72px;
+    opacity: 1;
+}
+
+.nova-player--embed .nova-player__progress-wrap,
+.nova-player--embed .nova-player__center-play,
+.nova-player--embed .nova-player__controls-row,
+.nova-player--embed .nova-player__bottom .nova-player__btn {
+    display: none;
+}
+
+.nova-player--embed .nova-player__embed-hint {
+    display: block;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.45);
+    text-align: center;
+    margin-top: 0.25rem;
+}
+
+.nova-player__embed-hint {
+    display: none;
+}
+
+.nova-player:fullscreen,
+.nova-player:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+}
+
+.nova-player__loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.nova-player__loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--primary-red, #E50914);
+    border-radius: 50%;
+    animation: nova-player-spin 0.8s linear infinite;
+}
+
+@keyframes nova-player-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+    .nova-player__top {
+        padding: 1rem;
+    }
+
+    .nova-player__title {
+        font-size: 0.8rem;
+        max-width: 55vw;
+    }
+
+    .nova-player__bottom {
+        padding: 0.5rem 0.75rem 1rem;
+    }
+
+    .nova-player__center-play {
+        width: 3.5rem;
+        height: 3.5rem;
+    }
+}

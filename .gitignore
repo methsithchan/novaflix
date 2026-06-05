@@ -1,0 +1,21 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backups
+*.bak
+*.tmp
+
+# SQL (contains schema, but sometimes good to ignore live data dumps)
+# sql/
+
+# Node (in case developer uses npm later)
+node_modules/
+.npm/
+npm-debug.log*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo

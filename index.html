@@ -1,0 +1,2370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HGL07M90WG"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-HGL07M90WG');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>novaflix</title>
+
+    <!-- iOS Web App Config -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NovaFlix">
+
+    <!-- App Icon (using your existing favicon for now, but a larger square image is better) -->
+    <link rel="apple-touch-icon" href="assets/icons/favicon.png">
+
+    <meta content="Novaflix" property="og:title" />
+    <meta name="keywords" content="free movies, streaming, watch online, glassmorphism design">
+    <meta content="Experience a modern interface powered by Nova." property="og:description" />
+    <meta content="#E50914" data-react-helmet="true" name="theme-color" />
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="assets/icons/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Performance Detection (Load Early) -->
+    <script src="lib/performance.js"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.10.3/cdn.min.js" defer></script>
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet">
+
+    <!-- Core Scripts -->
+    <script src="js/sources.js"></script>
+    <script src="js/f1servers.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+
+    <script src="js/config.js"></script>
+    <script src="js/player.js"></script>
+    <script src="lib/supabaseClient.js"></script>
+    <script src="lib/auth.js"></script>
+    <script src="lib/db.js"></script>
+    <script src="https://vjs.zencdn.net/8.6.1/video.min.js" defer></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'netflix-red': '#E50914',
+                    }
+                },
+            },
+        }
+    </script>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style-performance.css">
+    <link rel="stylesheet" href="css/player.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#050505">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+    <!-- Debugger Removed after fix -->
+    <style>
+        #global-error-box {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 9999;
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 50vh;
+            overflow-y: auto;
+            border-bottom: none;
+        }
+    </style>
+</head>
+
+<body class="bg-black text-white selection:bg-red-500 selection:text-white" x-data="app()" x-init="init()"
+    @scroll.window="handleScroll()" @keydown.meta.k.prevent="document.getElementById('searchInputGlobal').focus()"
+    @keydown.ctrl.k.prevent="document.getElementById('searchInputGlobal').focus()"
+    @play-f1-stream.window="playGlobalVideo($event.detail.url, $event.detail.isDirect, $event.detail.title, $event.detail.f1Replay)">
+    <div id="global-error-box"></div>
+
+
+    <header id="header" class="hidden md:block">
+        <div class="header-cont container">
+            <div class="left-cont">
+                <img decoding="async" class="header-brand hidden md:block" src="assets/img/nflix.png" alt="Novaflix">
+
+                <ul class="main-nav hidden md:flex">
+                    <li class="nav-item" :class="{'active': currentTab === 'movies'}"
+                        @click="currentTab = 'movies'; currentPage = 1; fetchAndBuildContent(); window.scrollTo(0,0);">
+                        Movies</li>
+                    <li class="nav-item" :class="{'active': currentTab === 'shows'}"
+                        @click="currentTab = 'shows'; currentPage = 1; fetchAndBuildContent(); window.scrollTo(0,0);">TV
+                        Shows</li>
+                    <li class="nav-item" :class="{'active': currentTab === 'f1'}"
+                        @click="currentTab = 'f1'; currentPage = 1; fetchAndBuildContent(); window.scrollTo(0,0);">F1
+                    </li>
+                    <li class="nav-item" :class="{'active': currentTab === 'mylist'}"
+                        @click="currentTab = 'mylist'; currentPage = 1; window.scrollTo(0,0);">My List</li>
+                </ul>
+            </div>
+
+            <div class="right-cont hidden md:flex">
+                <div class="search-container relative md:ml-6" @click.away="searchResults = []">
+                    <!-- Glass Pill Search Input -->
+                    <input type="text" id="searchInputGlobal" x-ref="searchInputGlobal"
+                        x-model.debounce.350ms="searchQuery" @keyup="searchContentDropdown()"
+                        @focus="if(searchQuery.length > 0 && searchResults.length === 0 && !isSearching) searchContentDropdown()"
+                        placeholder="Search..." class="search-input">
+
+                    <div x-show="searchResults.length > 0 && searchQuery.length > 0"
+                        class="search-results-dropdown custom-scrollbar" x-transition style="display:none;">
+                        <template x-for="item in searchResults" :key="item.id">
+                            <div @click="openInfoModal(item); searchResults = []; searchQuery = ''; $refs.searchInputGlobal.blur();"
+                                class="search-result-item flex gap-3">
+                                <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w92' + item.poster_path : 'https://placehold.co/40x60/181818/4D4D4D?text=N/A'"
+                                    class="w-10 h-14 object-cover rounded"
+                                    onerror="this.onerror=null;this.src='https://placehold.co/40x60/181818/4D4D4D?text=N/A';">
+                                <div class="info flex flex-col justify-center">
+                                    <h4 class="font-semibold text-sm text-white" x-text="item.title || item.name"></h4>
+                                    <p class="text-xs text-gray-400"
+                                        x-text="(item.media_type === 'movie' ? 'Movie' : 'TV Show') + ( (item.release_date || item.first_air_date) ? ' • ' + (item.release_date || item.first_air_date).substring(0,4) : '')">
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Settings Icon - Always Visible -->
+                <a href="settings.html"
+                    class="hidden md:block ml-6 p-2.5 rounded-full bg-white/5 hover:bg-white/10 transition text-gray-300 hover:text-white border border-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </a>
+
+                <!-- Auth UI - Desktop Only -->
+                <template x-if="!user">
+                    <div class="hidden md:flex items-center ml-6">
+                        <a href="login.html" class="liquid-button primary px-5 py-2 text-sm">Sign In</a>
+                    </div>
+                </template>
+
+                <template x-if="user">
+                    <div class="hidden md:flex items-center ml-6 relative" x-data="{ showProfileMenu: false }"
+                        @click.away="showProfileMenu = false">
+                        <img decoding="async" class="profile-avatar" :src="user.user_metadata.avatar_url || 'assets/img/pp.jpg'"
+                            alt="Profile" @click="showProfileMenu = !showProfileMenu">
+
+                        <div x-show="showProfileMenu" x-transition
+                            class="absolute top-full right-0 mt-4 w-56 bg-[#141414] border border-white/10 rounded-xl shadow-2xl z-50 py-2 backdrop-blur-xl">
+                            <div class="px-4 py-3 border-b border-white/10">
+                                <p class="text-xs text-gray-400">Signed in as</p>
+                                <p class="text-sm text-white font-semibold truncate"
+                                    x-text="user.user_metadata.username || user.email"></p>
+                            </div>
+                            <button @click="signOut()"
+                                class="block w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/10 hover:text-red-300 transition">Sign
+                                Out</button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Hamburger Menu Button (Mobile Only) -->
+                <button @click="mobileMenu = true"
+                    class="md:hidden p-2 text-white hover:bg-white/10 rounded-full transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- OLD Mobile Hamburger Menu (Commented Out for Safety) -->
+        <!-- <div x-show="mobileMenu" ... -->
+
+        <div x-show="mobileMenu" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" @click="mobileMenu = false"
+            class="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" style="display: none;">
+        </div>
+
+        <div x-show="mobileMenu" x-transition:enter="transition ease-out duration-300 transform"
+            x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+            x-transition:leave="transition ease-in duration-200 transform" x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            class="md:hidden fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-[#141414]/98 backdrop-blur-xl border-l border-white/10 shadow-2xl z-[101] overflow-y-auto"
+            style="display: none;" @click.away="mobileMenu = false">
+
+            <!-- Menu Header -->
+            <div class="p-6 border-b border-white/10 flex items-center justify-between">
+                <img decoding="async" class="h-8" src="assets/img/nflix.png" alt="Novaflix">
+                <button @click="mobileMenu = false" class="p-2 hover:bg-white/10 rounded-full transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- User Profile Section (if logged in) -->
+            <template x-if="user">
+                <div class="p-6 border-b border-white/10 bg-white/5">
+                    <div class="flex items-center gap-3 mb-4" style="margin-bottom: 0px;">
+                        <img decoding="async" class="w-12 h-12 rounded-full border-2 border-white/20"
+                            :src="user.user_metadata.avatar_url || 'assets/img/pp.jpg'" alt="Profile">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-white truncate"
+                                x-text="user.user_metadata.username || user.email"></p>
+                            <p class="text-xs text-gray-400">Signed in</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Navigation Links -->
+            <div class="p-4 space-y-1">
+                <button
+                    @click="currentTab = 'movies'; currentPage = 1; fetchAndBuildContent(); mobileMenu = false; window.scrollTo(0,0);"
+                    :class="currentTab === 'movies' ? 'bg-white/15 text-white' : 'text-gray-300'"
+                    class="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 font-medium transition-all flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                    </svg>
+                    Movies
+                </button>
+
+                <button
+                    @click="currentTab = 'shows'; currentPage = 1; fetchAndBuildContent(); mobileMenu = false; window.scrollTo(0,0);"
+                    :class="currentTab === 'shows' ? 'bg-white/15 text-white' : 'text-gray-300'"
+                    class="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 font-medium transition-all flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    TV Shows
+                </button>
+
+                <button
+                    @click="currentTab = 'f1'; currentPage = 1; fetchAndBuildContent(); mobileMenu = false; window.scrollTo(0,0);"
+                    :class="currentTab === 'f1' ? 'bg-white/15 text-white' : 'text-gray-300'"
+                    class="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 font-medium transition-all flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    F1 Live
+                </button>
+
+                <button
+                    @click="currentTab = 'mylist'; currentPage = 1; fetchAndBuildContent(); mobileMenu = false; window.scrollTo(0,0);"
+                    :class="currentTab === 'mylist' ? 'bg-white/15 text-white' : 'text-gray-300'"
+                    class="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 font-medium transition-all flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    My List
+                </button>
+            </div>
+
+            <!-- Settings & Auth Section -->
+            <div class="p-4 border-t border-white/10 space-y-2 mt-4">
+                <a href="settings.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 text-gray-300 font-medium transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Settings
+                </a>
+
+                <template x-if="!user">
+                    <a href="login.html"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-netflix-red hover:bg-red-700 text-white font-bold transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        Sign In
+                    </a>
+                </template>
+
+                <template x-if="user">
+                    <button @click="signOut()"
+                        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-400 font-medium transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Sign Out
+                    </button>
+                </template>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Wrapper -->
+    <div class="min-h-screen pb-20" style="padding-bottom: unset;">
+
+        <!-- HOME VIEW -->
+        <div x-show="(currentTab !== 'f1' && currentTab !== 'mylist' && currentTab !== 'search') || mobileDetailOpen || closingMobileDetail"
+            x-transition.opacity>
+            <!-- Banner Section (Desktop Only) -->
+            <div class="hidden md:block banner-section" id="banner-section" @mouseenter="initiateBannerTrailerPlay()"
+                @mouseleave="cancelBannerTrailerPlayAndClear()">
+                <div class="banner-trailer-overlay" id="banner-trailer-overlay"></div>
+                <!-- Content injected by app.js -->
+                <div class="banner_fadeBottom"></div>
+            </div>
+
+            <!-- Movies Content (Desktop Only for now, we will rebuild for Mobile) -->
+            <div class="hidden md:block movies-cont container -mt-20 relative z-10" id="movies-cont">
+                <div id="added-for-you-container"></div>
+                <div id="continue-watching-container"></div>
+                <div id="trending-tv-shows-container"></div>
+                <!-- Desktop Dynamic Rows will be injected here as usual -->
+                <!-- We need a duplicate container for Desktop rows if app.js targets by ID. 
+                     However, app.js likely appends to `dynamic-content-rows`. 
+                     To support both without code duplication in app.js, we might need a shared ID or handle it in JS.
+                     For now, let's keep the ID here for desktop. -->
+                <div id="dynamic-content-rows"></div>
+            </div>
+
+            <!-- ========================================== -->
+            <!--          NEW MOBILE UI (md:hidden)         -->
+            <!-- ========================================== -->
+            <div class="md:hidden pb-0">
+
+                <!-- MOBILE HOME VIEW -->
+                <div x-show="!mobileDetailOpen">
+
+                    <!-- Mobile Hero Section -->
+                    <div class="relative w-full h-[85vh] overflow-hidden">
+
+                        <div class="absolute inset-0">
+                            <img :src="featuredContent ? (featuredContent.poster_path ? 'https://image.tmdb.org/t/p/original' + featuredContent.poster_path : '') : ''"
+                                class="w-full h-full object-cover opacity-90 transition-transform duration-[10s] ease-in-out hover:scale-105"
+                                alt="Hero Image">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent">
+                            </div>
+                            <div
+                                class="absolute bottom-0 left-0 right-0 h-[60%] bg-gradient-to-t from-[#050505] via-[#050505]/90 to-transparent">
+                            </div>
+                        </div>
+
+                        <!-- Top Actions (Vol / Profile) -->
+                        <div
+                            class="absolute top-0 left-0 right-0 p-6 pt-6 flex justify-between items-center z-20 pointer-events-none">
+                            <img src="assets/icons/favicon.png" class="w-8 h-8 drop-shadow-md opacity-80" alt="Logo">
+                            <!-- Kept favicon as requested -->
+                            <div class="flex gap-3 pointer-events-auto">
+                                <!-- Profile -->
+                                <button @click="openProfilePage()"
+                                    class="w-10 h-10 rounded-full overflow-hidden border border-white/20 active:scale-95 transition-transform block relative">
+                                    <img :src="user?.user_metadata?.avatar_url || 'assets/img/pp.jpg'"
+                                        class="w-full h-full object-cover">
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hero Content Info -->
+                        <div
+                            class="absolute bottom-16 left-0 right-0 p-6 flex flex-col items-center text-center z-20 pb-4">
+                            <div
+                                class="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full mb-3 border border-white/10">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-white">Featured</span>
+                            </div>
+
+                            <!-- Mobile Hero Title / Logo Logic -->
+                            <template x-if="featuredContent?.id === 66732"> <!-- Stranger Things Special Case -->
+                                <img src="assets/icons/stlg-mobile.png"
+                                    class="w-[85%] max-w-[280px] object-contain drop-shadow-2xl mb-3 animate-fade-in-up">
+                            </template>
+
+                            <template x-if="featuredContent?.id !== 66732">
+                                <div x-data="{ logoError: false }"
+                                    class="w-full flex justify-center items-center flex-col">
+                                    <template x-if="featuredContent?.images?.logos?.[0]?.file_path">
+                                        <img x-show="!logoError"
+                                            :src="'https://image.tmdb.org/t/p/w500' + featuredContent.images.logos[0].file_path"
+                                            @error="logoError = true" @load="logoError = false"
+                                            class="w-[85%] max-w-[280px] max-h-[110px] object-contain drop-shadow-2xl mb-3 animate-fade-in-up"
+                                            :alt="featuredContent?.title">
+                                    </template>
+                                    <h1 x-show="!featuredContent?.images?.logos?.[0]?.file_path || logoError"
+                                        class="text-[40px] font-black italic leading-none mb-3 tracking-tighter drop-shadow-2xl text-balance animate-fade-in-up text-center"
+                                        style="font-family: inherit;">
+                                        <span x-text="featuredContent?.title || featuredContent?.name"></span>
+                                    </h1>
+                                </div>
+                            </template>
+
+
+
+                            <div
+                                class="flex items-center justify-center gap-3 text-xs md:text-sm font-medium text-gray-200 mb-3 drop-shadow-md animate-fade-in-up delay-100">
+                                <span class="text-green-400 font-bold"
+                                    x-text="(featuredContent?.vote_average ? Math.round(featuredContent.vote_average * 10) : 82) + '% Match'"></span>
+                                <span
+                                    x-text="featuredContent?.release_date?.substring(0,4) || featuredContent?.first_air_date?.substring(0,4) || '2024'"></span>
+                                <span
+                                    class="border border-white/40 px-1.5 py-0.5 rounded text-[10px] backdrop-blur-md bg-black/10">HD</span>
+                                <span
+                                    class="border border-white/40 px-1.5 py-0.5 rounded text-[10px] backdrop-blur-md bg-black/10"
+                                    x-text="featuredContent?.media_type === 'tv' ? 'Series' : 'Movie'"></span>
+                            </div>
+
+                            <p class="text-gray-200 text-sm leading-snug line-clamp-3 drop-shadow-md mb-5 w-[90%] mx-auto opacity-90 font-medium animate-fade-in-up delay-200"
+                                x-text="featuredContent?.overview">
+                            </p>
+
+                            <div
+                                class="flex gap-4 w-full justify-center mb-3 pointer-events-auto relative z-30 animate-fade-in-up delay-300">
+                                <button @click.stop="playFeatured()"
+                                    class="flex items-center justify-center gap-2 px-8 py-3 rounded-full font-semibold text-[15px] tracking-wide bg-white text-black active:scale-95 transition-transform shadow-lg shadow-white/10">
+                                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                    Play
+                                </button>
+                                <button @click.stop="openMobileDetail(featuredContent)"
+                                    class="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-xl bg-white/10 border border-white/10 active:scale-95 transition-transform text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Swimlanes Container -->
+                    <div class="relative z-10 -mt-24 space-y-8 pl-5">
+
+                        <!-- Trending Section (Switches based on Tab) -->
+                        <template x-if="currentTab === 'home' || currentTab === 'movies'">
+                            <section class="animate-in fade-in slide-in-from-bottom-8 duration-500">
+                                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-1">
+                                    Trending Movies <svg class="w-4 h-4 text-white/50" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </h3>
+                                <div class="flex overflow-x-auto gap-6 pr-5 pb-4 hide-scrollbar items-end pl-10">
+                                    <template x-for="(item, index) in trendingMovies.slice(0, 10)" :key="item.id">
+                                        <div class="flex-none relative w-[140px] cursor-pointer active:scale-95 transition-transform"
+                                            @click="openMobileDetail(item)">
+                                            <!-- Big Number -->
+                                            <div class="absolute -left-6 -top-2 text-[100px] font-black leading-none text-white z-20 drop-shadow-2xl font-serif scale-y-110"
+                                                style="text-shadow: 0 0 20px rgba(0,0,0,0.8); -webkit-text-stroke: 2px rgba(255,255,255,0.2);">
+                                                <span x-text="index + 1"></span>
+                                            </div>
+                                            <div
+                                                class="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-lg z-10 ml-4 border border-white/10">
+                                                <img :src="'https://image.tmdb.org/t/p/w300' + item.poster_path"
+                                                    class="w-full h-full object-cover">
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </section>
+                        </template>
+
+                        <template x-if="currentTab === 'shows'">
+                            <section class="animate-in fade-in slide-in-from-bottom-8 duration-500">
+                                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-1">
+                                    Trending Series <svg class="w-4 h-4 text-white/50" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </h3>
+                                <div class="flex overflow-x-auto gap-6 pr-5 pb-4 hide-scrollbar items-end pl-10">
+                                    <template x-for="(item, index) in mobileTrendingShows.slice(0, 10)" :key="item.id">
+                                        <div class="flex-none relative w-[140px] cursor-pointer active:scale-95 transition-transform"
+                                            @click="openMobileDetail(item)">
+                                            <!-- Big Number -->
+                                            <div class="absolute -left-6 -top-2 text-[100px] font-black leading-none text-white z-20 drop-shadow-2xl font-serif scale-y-110"
+                                                style="text-shadow: 0 0 20px rgba(0,0,0,0.8); -webkit-text-stroke: 2px rgba(255,255,255,0.2);">
+                                                <span x-text="index + 1"></span>
+                                            </div>
+                                            <div
+                                                class="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-lg z-10 ml-4 border border-white/10">
+                                                <img :src="'https://image.tmdb.org/t/p/w300' + item.poster_path"
+                                                    class="w-full h-full object-cover">
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </section>
+                        </template>
+
+                        <!-- Continue Watching (Mobile) (Always Visible if Data Exists) -->
+                        <template x-if="continueWatchingItems.length > 0">
+                            <section class="animate-in fade-in slide-in-from-right duration-500 delay-100">
+                                <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-1">
+                                    Continue Watching <svg class="w-4 h-4 text-white/50" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </h3>
+                                <div class="flex overflow-x-auto gap-4 pr-5 pb-4 hide-scrollbar">
+                                    <template x-for="item in continueWatchingItems" :key="item.id">
+                                        <div class="flex-none w-[280px] group relative cursor-pointer active:scale-95 transition-transform duration-200"
+                                            @click="openMobileDetail(item)">
+                                            <div
+                                                class="relative aspect-video rounded-xl overflow-hidden mb-2 shadow-xl border border-white/5">
+                                                <img :src="item.backdrop_path ? 'https://image.tmdb.org/t/p/w500' + item.backdrop_path : 'https://placehold.co/500x281/222?text=No+Image'"
+                                                    class="w-full h-full object-cover">
+                                                <div class="absolute inset-0 bg-black/20"></div>
+                                                <div
+                                                    class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div
+                                                        class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                                                        <svg class="w-5 h-5 fill-white" viewBox="0 0 24 24">
+                                                            <path d="M8 5v14l11-7z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <h4 class="text-sm font-medium text-gray-200 truncate"
+                                                x-text="item.title || item.name"></h4>
+                                            <p class="text-xs text-gray-400">Resume</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </section>
+                        </template>
+
+                        <!-- Added For You (Mobile) -->
+                        <template x-if="addedForYouItems && addedForYouItems.length > 0">
+                            <section class="animate-in fade-in slide-in-from-right duration-500 delay-100">
+                                <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-1">
+                                    Added For You
+                                </h3>
+                                <div class="flex overflow-x-auto gap-3 pr-5 pb-4 hide-scrollbar">
+                                    <template x-for="item in addedForYouItems" :key="item.id">
+                                        <div class="flex-none w-[140px] relative cursor-pointer active:scale-95 transition-transform"
+                                            @click="openMobileDetail(item)">
+                                            <div
+                                                class="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg border border-white/10 bg-[#222]">
+                                                <img :src="item.poster_path && item.poster_path.startsWith('http') ? item.poster_path : (item.poster_path ? (item.poster_path.startsWith('/') ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : item.poster_path) : 'https://placehold.co/300x450/222/fff?text=Added')"
+                                                    class="w-full h-full object-cover">
+
+                                                <!-- Overlay badge -->
+                                                <div
+                                                    class="absolute top-2 right-2 px-1.5 py-0.5 bg-yellow-500/90 backdrop-blur rounded text-[8px] font-bold text-black shadow-sm">
+                                                    PRIVATE
+                                                </div>
+                                            </div>
+                                            <h4 class="text-xs font-medium text-gray-200 mt-2 truncate"
+                                                x-text="item.title"></h4>
+                                        </div>
+                                    </template>
+                                </div>
+                            </section>
+                        </template>
+
+                        <!-- Dynamic Categories (Mobile) -->
+                        <div id="mobile-dynamic-rows" class="space-y-8 pb-8">
+
+                            <!-- MOVIES TAB ROWS -->
+                            <template x-if="currentTab === 'home' || currentTab === 'movies'">
+                                <div class="animate-in fade-in slide-in-from-bottom-8 duration-500 delay-200 space-y-8">
+                                    <!-- Wrapper for multiple rows -->
+                                    <!-- Animated Movies -->
+                                    <template x-if="mobileAnimatedMovies.length > 0">
+                                        <section>
+                                            <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-1">
+                                                Animated Movies <svg class="w-4 h-4 text-white/50" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </h3>
+                                            <div class="flex overflow-x-auto gap-4 pr-5 pb-4 hide-scrollbar">
+                                                <template x-for="item in mobileAnimatedMovies" :key="item.id">
+                                                    <div class="flex-none w-[130px] cursor-pointer active:scale-95 transition-transform"
+                                                        @click="openMobileDetail(item)">
+                                                        <div
+                                                            class="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-md border border-white/5">
+                                                            <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'https://placehold.co/300x450/222?text=N/A'"
+                                                                class="w-full h-full object-cover">
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </section>
+                                    </template>
+
+                                    <!-- Action Movies -->
+                                    <template x-if="mobileActionMovies.length > 0">
+                                        <section>
+                                            <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-1">
+                                                Action Movies <svg class="w-4 h-4 text-white/50" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </h3>
+                                            <div class="flex overflow-x-auto gap-4 pr-5 pb-4 hide-scrollbar">
+                                                <template x-for="item in mobileActionMovies" :key="item.id">
+                                                    <div class="flex-none w-[130px] cursor-pointer active:scale-95 transition-transform"
+                                                        @click="openMobileDetail(item)">
+                                                        <div
+                                                            class="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-md border border-white/5">
+                                                            <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'https://placehold.co/300x450/222?text=N/A'"
+                                                                class="w-full h-full object-cover">
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </section>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- TV SHOWS TAB ROWS -->
+                            <template x-if="currentTab === 'shows'">
+                                <div class="animate-in fade-in slide-in-from-bottom-8 duration-500 delay-200 space-y-8">
+                                    <!-- Wrapper -->
+                                    <!-- Sci-Fi & Fantasy Series -->
+                                    <template x-if="mobileSciFiShows.length > 0">
+                                        <section>
+                                            <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-1">
+                                                Sci-Fi & Fantasy <svg class="w-4 h-4 text-white/50" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </h3>
+                                            <div class="flex overflow-x-auto gap-4 pr-5 pb-4 hide-scrollbar">
+                                                <template x-for="item in mobileSciFiShows" :key="item.id">
+                                                    <div class="flex-none w-[130px] cursor-pointer active:scale-95 transition-transform"
+                                                        @click="openMobileDetail(item)">
+                                                        <div
+                                                            class="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-md border border-white/5">
+                                                            <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'https://placehold.co/300x450/222?text=N/A'"
+                                                                class="w-full h-full object-cover">
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </section>
+                                    </template>
+
+                                    <!-- Animated Series -->
+                                    <template x-if="mobileAnimatedShows.length > 0">
+                                        <section>
+                                            <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-1">
+                                                Animated Series <svg class="w-4 h-4 text-white/50" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </h3>
+                                            <div class="flex overflow-x-auto gap-4 pr-5 pb-4 hide-scrollbar">
+                                                <template x-for="item in mobileAnimatedShows" :key="item.id">
+                                                    <div class="flex-none w-[130px] cursor-pointer active:scale-95 transition-transform"
+                                                        @click="openMobileDetail(item)">
+                                                        <div
+                                                            class="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-md border border-white/5">
+                                                            <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'https://placehold.co/300x450/222?text=N/A'"
+                                                                class="w-full h-full object-cover">
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </section>
+                                    </template>
+                                </div>
+                            </template>
+
+                        </div>
+
+                        <!-- Spacer for bottom nav -->
+                    </div>
+                </div>
+
+
+
+                <!-- MOBILE DETAIL OVERLAY (Replaces Modal) -->
+                <div x-show="mobileDetailOpen" x-transition.opacity.duration.300ms
+                    class="fixed inset-0 z-[200] bg-black overflow-y-auto pb-20 animate-fade-in-up">
+
+                    <template x-if="mobileDetailContent">
+                        <div>
+                            <!-- Top Nav Actions -->
+                            <div
+                                class="fixed top-0 left-0 right-0 p-4 pt-12 flex justify-between items-center z-50 pointer-events-none">
+                                <button
+                                    @click="closingMobileDetail = true; mobileDetailOpen = false; document.body.style.overflow = ''; setTimeout(() => { searchQuery = ''; searchResults = []; closingMobileDetail = false; }, 350)"
+                                    class="w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-xl bg-black/40 border border-white/10 active:scale-95 transition-transform pointer-events-auto text-white">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <div class="flex gap-3 pointer-events-auto">
+                                    <button
+                                        class="w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-xl bg-black/40 border border-white/10 active:scale-95 transition-transform text-white">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Backdrop Image -->
+                            <div class="relative w-full h-[65vh]">
+                                <img :src="(() => {
+                                    const path = mobileDetailContent.backdrop_path || mobileDetailContent.poster_path;
+                                    if (!path) return 'https://placehold.co/800x1200/111/333?text=No+Image';
+                                    if (path.startsWith('http')) return path;
+                                    if (path.startsWith('/')) return 'https://image.tmdb.org/t/p/original' + path;
+                                    return path;
+                                })()" class="w-full h-full object-cover">
+                                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent">
+                                </div>
+
+                                <div
+                                    class="absolute bottom-0 left-0 right-0 px-6 pb-8 -mb-4 bg-gradient-to-t from-black via-black to-transparent pt-32">
+
+                                    <!-- LOGO LOGIC (Copied from banner) -->
+                                    <div class="flex flex-col items-center justify-center mb-4">
+                                        <!-- Special Case: Stranger Things -->
+                                        <template x-if="mobileDetailContent.id === 66732">
+                                            <img src="assets/icons/stlg-mobile.png"
+                                                class="max-w-[80%] max-h-[120px] object-contain drop-shadow-2xl animate-fade-in-up">
+                                        </template>
+
+                                        <!-- Custom Logo (Private Content) -->
+                                        <template
+                                            x-if="mobileDetailContent.id !== 66732 && mobileDetailContent.logo_path">
+                                            <img :src="mobileDetailContent.logo_path"
+                                                :class="(mobileDetailContent.title && mobileDetailContent.title.toLowerCase().includes('first shadow')) 
+                                                    ? 'max-w-[60%] max-h-[100px] object-contain drop-shadow-2xl animate-fade-in-up' 
+                                                    : 'max-w-[80%] max-h-[140px] object-contain drop-shadow-2xl animate-fade-in-up'">
+                                        </template>
+
+                                        <!-- Standard Logic (TMDB or Text Fallback) -->
+                                        <template
+                                            x-if="mobileDetailContent.id !== 66732 && !mobileDetailContent.logo_path">
+                                            <div x-data="{ logoError: false }" class="w-full flex justify-center">
+                                                <template x-if="mobileDetailContent.images?.logos?.[0]?.file_path">
+                                                    <img x-show="!logoError"
+                                                        :src="'https://image.tmdb.org/t/p/w500' + mobileDetailContent.images.logos[0].file_path"
+                                                        @error="logoError = true" @load="logoError = false"
+                                                        class="max-w-[80%] max-h-[120px] object-contain drop-shadow-2xl animate-fade-in-up">
+                                                </template>
+                                                <!-- Text Fallback -->
+                                                <h1 x-show="!mobileDetailContent.images?.logos?.[0]?.file_path || logoError"
+                                                    class="text-4xl font-black italic leading-none tracking-tighter drop-shadow-2xl text-center uppercase animate-fade-in-up"
+                                                    x-text="mobileDetailContent.title || mobileDetailContent.name">
+                                                </h1>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <div
+                                        class="flex items-center justify-center gap-2 text-xs font-semibold text-white/80 mb-6 drop-shadow-md">
+                                        <span x-text="(() => {
+                                            const privateData = mobileDetailContent.original_private_item;
+                                            const type = privateData?.media_type || mobileDetailContent.media_type;
+                                            if (type === 'play') return 'Stage Play';
+                                            if (type === 'movie') return 'Movie';
+                                            return 'TV Show';
+                                        })()"></span>
+                                        <span class="text-white/40">•</span>
+                                        <span x-text="(() => {
+                                            const privateData = mobileDetailContent.original_private_item;
+                                            if (privateData?.year) return privateData.year;
+                                            return (mobileDetailContent.release_date || mobileDetailContent.first_air_date || '').substring(0,4);
+                                        })()"></span>
+                                    </div>
+
+                                    <div class="flex items-center gap-3 mb-6">
+                                        <button @click="playMobileContent(mobileDetailContent)"
+                                            class="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-bold text-[15px] bg-white text-black active:scale-95 transition-transform shadow-lg shadow-white/10">
+                                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                            Play Now
+                                        </button>
+                                        <button @click="toggleWatchLater(mobileDetailContent)"
+                                            class="w-14 h-14 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md border border-white/10 active:scale-95 transition-transform text-white"
+                                            :class="isInWatchLater(mobileDetailContent) ? 'bg-white text-black' : 'bg-white/10 text-white'">
+
+                                            <svg x-show="isInWatchLater(mobileDetailContent)" class="w-6 h-6"
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7" />
+                                            </svg>
+
+                                            <svg x-show="!isInWatchLater(mobileDetailContent)" class="w-6 h-6"
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+
+
+
+                                    <p class="text-white/80 text-sm leading-relaxed line-clamp-4 mb-6 text-center font-medium drop-shadow-sm"
+                                        x-text="mobileDetailContent.overview"></p>
+
+                                    <div
+                                        class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] text-white/60 font-bold tracking-wide mb-1">
+                                        <!-- Private Tag -->
+                                        <template x-if="mobileDetailContent.original_private_item">
+                                            <span
+                                                class="text-black bg-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wide shadow-sm">Private</span>
+                                        </template>
+
+                                        <!-- Dynamic badges from private data OR defaults for TMDB content -->
+                                        <template x-if="mobileDetailContent.original_private_item?.badges">
+                                            <template x-for="badge in mobileDetailContent.original_private_item.badges"
+                                                :key="badge">
+                                                <span
+                                                    class="border border-white/20 px-1.5 py-0.5 rounded text-white/90 bg-black/20 backdrop-blur-md"
+                                                    x-text="badge"></span>
+                                            </template>
+                                        </template>
+                                        <!-- Default badges for TMDB content (not private) -->
+                                        <template x-if="!mobileDetailContent.original_private_item">
+                                            <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+                                                <span
+                                                    class="border border-white/20 px-1.5 py-0.5 rounded text-white/90 bg-black/20 backdrop-blur-md">HD</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CONTENT BELOW FOLD -->
+                            <div class="px-6 space-y-4 pb-12">
+
+                                <!-- CAST SECTION (NEW) -->
+                                <template x-if="mobileDetailContent.credits?.cast?.length > 0">
+                                    <div class="pt-0">
+                                        <h3 class="text-lg font-bold text-white mb-3">Cast</h3>
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="person in mobileDetailContent.credits.cast.slice(0,8)"
+                                                :key="person.id">
+                                                <span
+                                                    class="text-sm text-white/70 bg-white/10 px-3 py-1.5 rounded-full border border-white/10"
+                                                    x-text="person.name"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- TV SHOW: EPISODES SECTION (Reverted to Old Layout) -->
+                                <template x-if="mobileDetailContent.media_type === 'tv' && mobileSeasons.length > 0">
+                                    <div class="mt-8 pt-8 border-t border-white/10">
+                                        <div class="flex justify-between items-center mb-6">
+                                            <h3 class="text-2xl font-bold text-white">Episodes</h3>
+                                            <div class="relative">
+                                                <select x-model="mobileSelectedSeason"
+                                                    @change="fetchMobileSeasonEpisodes(mobileDetailContent.id, $event.target.value)"
+                                                    class="appearance-none bg-white/10 border border-white/20 text-white rounded-lg px-6 py-2 pr-10 text-sm focus:outline-none focus:border-white/40 cursor-pointer hover:bg-white/20 transition">
+                                                    <template x-for="season in mobileSeasons"
+                                                        :key="season.season_number">
+                                                        <option :value="season.season_number" x-text="season.name"
+                                                            class="bg-gray-900"></option>
+                                                    </template>
+                                                </select>
+                                                <div
+                                                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <template x-if="mobileLoadingEpisodes">
+                                                <div class="text-center py-10 text-gray-500 animate-pulse">Loading
+                                                    episodes...</div>
+                                            </template>
+
+                                            <!-- No Episodes Fallback -->
+                                            <template
+                                                x-if="!mobileLoadingEpisodes && (!mobileEpisodes || mobileEpisodes.length === 0)">
+                                                <div class="text-center py-8 text-white/40 text-sm">
+                                                    No episodes available.
+                                                </div>
+                                            </template>
+
+                                            <template x-for="(episode, idx) in mobileEpisodes" :key="episode.id">
+                                                <div @click="playMobileContent(mobileDetailContent, episode)"
+                                                    class="flex gap-4 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition group border border-transparent hover:border-white/5 items-center">
+
+                                                    <!-- Thumbnail (Compact Fixed Width) -->
+                                                    <div
+                                                        class="w-32 sm:w-40 aspect-video bg-gray-800 rounded-lg overflow-hidden relative flex-shrink-0 shadow-md">
+                                                        <img :src="episode.still_path ? 'https://image.tmdb.org/t/p/w300'+episode.still_path : 'https://placehold.co/300x169/222/fff?text=No+Img'"
+                                                            class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                                                        <!-- Play Icon Overlay -->
+                                                        <div
+                                                            class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                                            <svg class="w-8 h-8 text-white" fill="currentColor"
+                                                                viewBox="0 0 24 24">
+                                                                <path
+                                                                    d="M4 2.69127C4 1.93067 4.81547 1.44851 5.48192 1.81506L22.4069 11.1238C23.0977 11.5037 23.0977 12.4963 22.4069 12.8762L5.48192 22.1849C4.81546 22.5515 4 22.0693 4 21.3087V2.69127Z">
+                                                                </path>
+                                                            </svg>
+                                                        </div>
+                                                        <!-- Progress Bar (Optional, if available) -->
+                                                        <div x-show="episode.progress"
+                                                            class="absolute bottom-0 left-0 h-1 bg-red-600 z-10"
+                                                            :style="'width: ' + (episode.progress || 0) + '%'"></div>
+                                                    </div>
+
+                                                    <!-- Text Info -->
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="flex justify-between items-start mb-1">
+                                                            <h4 class="font-bold text-gray-200 group-hover:text-white text-sm sm:text-base truncate pr-2"
+                                                                x-text="episode.episode_number + '. ' + (episode.name || 'Episode ' + episode.episode_number)">
+                                                            </h4>
+                                                            <span
+                                                                class="text-[10px] sm:text-xs text-gray-500 font-mono flex-shrink-0 pt-0.5"
+                                                                x-text="episode.runtime ? episode.runtime + 'm' : ''"></span>
+                                                        </div>
+                                                        <p class="text-xs sm:text-sm text-gray-400 line-clamp-2 leading-relaxed"
+                                                            x-text="episode.overview || 'No description available.'">
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Trailers & More (Reverted to Old Layout) -->
+                                <template x-if="mobileTrailers.length > 0">
+                                    <div class="pt-8 pb-12">
+                                        <!-- Adjusted padding/margin matching old layout container -->
+                                        <div class="flex items-center gap-3 mb-4 md:mb-5">
+                                            <h3 class="text-lg md:text-xl font-bold text-white">Trailers & More</h3>
+                                        </div>
+                                        <div
+                                            class="flex overflow-x-auto gap-4 md:gap-5 custom-scrollbar pb-4 pr-4 md:pr-8">
+                                            <template x-for="video in mobileTrailers" :key="video.id">
+                                                <div @click="window.open('https://www.youtube.com/watch?v=' + video.key, '_blank')"
+                                                    class="flex-shrink-0 w-64 md:w-72 group cursor-pointer transition-transform duration-300 hover:scale-[1.02]">
+                                                    <!-- Fixed height container to force aspect ratio -->
+                                                    <div
+                                                        class="relative w-full h-36 md:h-40 bg-[#222] rounded-xl overflow-hidden mb-2 md:mb-3 shadow-lg border border-white/10">
+                                                        <img :src="'https://img.youtube.com/vi/' + video.key + '/hqdefault.jpg'"
+                                                            class="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:scale-110"
+                                                            loading="lazy">
+                                                        <!-- Play Overlay -->
+                                                        <div
+                                                            class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[1px]">
+                                                            <div
+                                                                class="w-10 h-10 md:w-12 md:h-12 bg-red-600 rounded-full flex items-center justify-center shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300">
+                                                                <svg class="w-5 h-5 md:w-6 md:h-6 text-white ml-1"
+                                                                    fill="currentColor" viewBox="0 0 24 24">
+                                                                    <path d="M8 5v14l11-7z" />
+                                                                </svg>
+                                                            </div>
+                                                        </div>
+                                                        <div x-show="video.type"
+                                                            class="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-white/10"
+                                                            x-text="video.type"></div>
+                                                    </div>
+                                                    <h4 class="text-sm font-semibold text-gray-200 group-hover:text-white leading-tight line-clamp-2"
+                                                        x-text="video.name"></h4>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                            </div>
+
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- SEARCH PAGE (NEW) -->
+        <div x-show="currentTab === 'search' && !mobileDetailOpen && !closingMobileDetail"
+            class="md:hidden min-h-screen pb-24" x-cloak>
+
+            <!-- Mobile Header -->
+            <div class="fixed top-0 left-0 right-0 p-6 pt-6 flex justify-between items-center z-50 backdrop-blur-xl bg-black/60 sticky-search-header"
+                style="-webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%); mask-image: linear-gradient(to bottom, black 50%, transparent 100%);">
+                <h1 class="text-2xl font-black text-white">Search</h1>
+                <div class="flex gap-3">
+                    <button @click="openProfilePage()"
+                        class="w-10 h-10 rounded-full overflow-hidden border border-white/20 active:scale-95 transition-transform relative">
+                        <img :src="user?.user_metadata?.avatar_url || 'assets/img/pp.jpg'" class="w-full h-full object-cover">
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="pt-28 px-6 mb-8">
+                <div class="relative">
+                    <input type="text" x-model="searchQuery" @input="searchContentDropdown()"
+                        @focus="if(searchQuery.length > 0 && searchResults.length === 0 && !isSearching) searchContentDropdown()"
+                        placeholder="Shows, Movies, and More"
+                        class="w-full h-14 bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl px-6 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-white/30 transition">
+                    <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400 pointer-events-none"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+
+                <!-- Search Results List (shown when searching) -->
+                <div x-show="searchQuery.length > 0" x-transition class="mt-6">
+                    <!-- Loading State -->
+                    <div x-show="isSearching && searchResults.length === 0" class="text-center py-8">
+                        <p class="text-gray-400 text-sm">Searching...</p>
+                    </div>
+
+                    <!-- Results List -->
+                    <div x-show="searchResults.length > 0" class="space-y-3">
+                        <h3 class="text-lg font-bold text-white mb-4">Search Results</h3>
+                        <template x-for="item in searchResults" :key="item.id">
+                            <div @click="openMobileDetail(item)"
+                                class="flex gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 transition cursor-pointer border border-white/5">
+                                <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w92' + item.poster_path : 'https://placehold.co/92x138/181818/4D4D4D?text=N/A'"
+                                    class="w-16 h-24 object-cover rounded-lg flex-shrink-0 pointer-events-none"
+                                    onerror="this.onerror=null;this.src='https://placehold.co/92x138/181818/4D4D4D?text=N/A';">
+                                <div class="flex-1 min-w-0 flex flex-col justify-center pointer-events-none">
+                                    <h4 class="font-semibold text-base text-white truncate mb-1"
+                                        x-text="item.title || item.name"></h4>
+                                    <p class="text-xs text-gray-400 mb-2"
+                                        x-text="(item.media_type === 'movie' ? 'Movie' : 'TV Show') + ((item.release_date || item.first_air_date) ? ' • ' + (item.release_date || item.first_air_date).substring(0,4) : '')">
+                                    </p>
+                                    <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed"
+                                        x-text="item.overview || 'No description available.'"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- No Results -->
+                    <div x-show="!isSearching && searchResults.length === 0 && searchQuery.length > 2"
+                        class="text-center py-8">
+                        <p class="text-gray-400 text-sm">No results found for "<span x-text="searchQuery"></span>"</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Section (hidden when searching) -->
+            <div x-show="searchQuery.length === 0 && !showCategoryPage" x-transition class="px-6 pb-8">
+                <h2 class="text-xl font-bold text-white mb-5">Browse Categories</h2>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <template x-for="category in searchCategories" :key="category.id">
+                        <div @click="openCategoryPage(category.genreId, category.name, category.gradient)"
+                            class="relative h-24 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-transform duration-200 border border-white/10"
+                            :style="'background: ' + category.gradient">
+                            <div class="absolute inset-0 bg-black/30"></div>
+                            <div class="relative h-full flex flex-col justify-end p-4">
+                                <h3 class="text-white font-bold text-lg leading-tight drop-shadow-lg"
+                                    x-text="category.name"></h3>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CATEGORY DETAIL PAGE (NEW) -->
+        <div x-show="showCategoryPage"
+            class="md:hidden min-h-screen pb-24 fixed inset-0 bg-black z-[95] overflow-y-auto overscroll-contain"
+            x-cloak x-transition.opacity>
+
+            <!-- Hero Banner -->
+            <div class="relative w-full h-64 overflow-hidden">
+                <!-- Back Button (overlays hero) -->
+                <button
+                    @click="showCategoryPage = false; activeCategoryGradient = ''; searchCategoryResults = []; categoryCriticallyAcclaimed = []; activeSearchCategory = null; searchQuery = ''; searchResults = []"
+                    class="absolute top-12 left-4 z-10 w-10 h-10 rounded-full flex items-center justify-center bg-black/40 backdrop-blur-md border border-white/10 active:scale-95 transition-transform text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+
+                <div class="absolute inset-0" :style="'background: ' + activeCategoryGradient"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+                <div class="absolute bottom-8 left-6 right-6">
+                    <h2 class="text-5xl font-black text-white drop-shadow-2xl" x-text="activeSearchCategory"></h2>
+                </div>
+            </div>
+
+            <!-- Content Rows -->
+            <div class="px-6 pt-6 pb-8 space-y-8">
+                <!-- Trending Movies and Shows -->
+                <template x-if="searchCategoryResults.length > 0">
+                    <section>
+                        <h3 class="text-xl font-bold text-white mb-4">
+                            Trending Movies and Shows
+                            <svg class="w-5 h-5 text-white/50 inline-block mb-1" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </h3>
+                        <div class="flex overflow-x-auto gap-3 pb-4 hide-scrollbar -mx-6 px-6">
+                            <template x-for="item in searchCategoryResults.slice(0, 10)" :key="item.id">
+                                <div @click="openMobileDetail(item)"
+                                    class="flex-none w-32 cursor-pointer active:scale-95 transition-transform">
+                                    <div
+                                        class="aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-md border border-white/5">
+                                        <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'https://placehold.co/300x450/222?text=N/A'"
+                                            class="w-full h-full object-cover">
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </template>
+
+                <!-- Critically Acclaimed -->
+                <template x-if="categoryCriticallyAcclaimed.length > 0">
+                    <section>
+                        <h3 class="text-xl font-bold text-white mb-4">
+                            Critically Acclaimed <span x-text="activeSearchCategory"></span> Movies
+                            <svg class="w-5 h-5 text-white/50 inline-block mb-1" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </h3>
+                        <div class="flex overflow-x-auto gap-3 pb-4 hide-scrollbar -mx-6 px-6">
+                            <template x-for="item in categoryCriticallyAcclaimed.slice(0, 10)" :key="item.id">
+                                <div @click="openMobileDetail(item)"
+                                    class="flex-none w-32 cursor-pointer active:scale-95 transition-transform">
+                                    <div
+                                        class="aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-md border border-white/5">
+                                        <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'https://placehold.co/300x450/222?text=N/A'"
+                                            class="w-full h-full object-cover">
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </template>
+            </div>
+
+        </div>
+
+
+
+        <!-- MY LIST PAGE -->
+        <div x-show="currentTab === 'mylist'" class="min-h-screen pb-20 relative" x-cloak>
+
+            <!-- Mobile Header (Exact Copy of Home Page) -->
+            <div
+                class="md:hidden fixed top-0 left-0 right-0 p-6 pt-6 flex justify-between items-center z-50 pointer-events-none">
+                <img src="assets/icons/favicon.png" class="w-8 h-8 drop-shadow-md opacity-80" alt="Logo">
+                <div class="flex gap-3 pointer-events-auto">
+                    <!-- Profile -->
+                    <button @click="openProfilePage()"
+                        class="w-10 h-10 rounded-full overflow-hidden border border-white/20 active:scale-95 transition-transform block relative">
+                        <img :src="user?.user_metadata?.avatar_url || 'assets/img/pp.jpg'" class="w-full h-full object-cover">
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Container -->
+            <div class="container mx-auto px-6 md:px-8 pt-28 md:pt-32 relative z-10">
+                <h1 class="text-3xl md:text-4xl font-black text-white mb-8 tracking-tight">My List</h1>
+
+                <!-- Empty State -->
+                <template x-if="watchLaterItems.length === 0">
+                    <div class="flex flex-col items-center justify-center py-20 text-gray-500">
+                        <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                            <svg class="w-10 h-10 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-xl font-bold text-white mb-2">Nothing here yet</h2>
+                        <p class="max-w-xs text-center text-sm text-gray-400">Add movies and shows to your list to keep
+                            track of what you want to watch.</p>
+                        <button @click="currentTab = 'movies'"
+                            class="mt-8 px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition">
+                            Explore Content
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Grid Layout -->
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6"
+                    x-show="watchLaterItems.length > 0">
+                    <template x-for="item in watchLaterItems" :key="item.id">
+                        <div class="relative group cursor-pointer" @click="openMobileDetail(item)">
+                            <!-- Poster -->
+                            <div
+                                class="aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-lg border border-white/10 relative transition-transform duration-300 group-hover:scale-105 group-hover:z-10">
+                                <img :src="item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : 'https://placehold.co/500x750/222/FFF?text=No+Image'"
+                                    class="w-full h-full object-cover">
+
+                                <!-- Hover Overlay (Desktop) -->
+                                <div
+                                    class="hidden md:flex absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex-col justify-end p-4">
+                                    <button
+                                        class="w-full py-2 bg-white text-black text-sm font-bold rounded-full mb-2 hover:scale-105 transition">Play</button>
+                                    <button @click.stop="toggleWatchLater(item)"
+                                        class="w-full py-2 bg-white/20 backdrop-blur-md text-white text-sm font-bold rounded-full hover:bg-white/30 transition flex items-center justify-center gap-2">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Title (Mobile Only) -->
+                            <h3 class="mt-2 text-sm font-medium text-gray-200 truncate md:hidden"
+                                x-text="item.title || item.name">
+                            </h3>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+
+        <div x-show="currentTab === 'f1'" class="min-h-screen pt-28 pb-20" x-cloak>
+
+            <!-- Mobile Header (F1 Page) -->
+            <div
+                class="md:hidden absolute top-0 left-0 right-0 p-6 pt-6 flex justify-between items-center z-50 pointer-events-none">
+                <img src="assets/icons/favicon.png" class="w-8 h-8 drop-shadow-md opacity-80" alt="Logo">
+                <div class="flex gap-3 pointer-events-auto">
+                    <!-- Profile -->
+                    <button @click="openProfilePage()"
+                        class="w-10 h-10 rounded-full overflow-hidden border border-white/20 active:scale-95 transition-transform block relative">
+                        <img :src="user?.user_metadata?.avatar_url || 'assets/img/pp.jpg'" class="w-full h-full object-cover">
+                    </button>
+                </div>
+            </div>
+
+            <div class="container mx-auto px-4 md:px-8 space-y-12" x-data="f1App()">
+
+                <!-- 1. Hero Section -->
+                <!-- FIX: Changed aspect-ratio to min-h for mobile so content doesn't get squashed -->
+                <div
+                    class="relative w-full min-h-[550px] md:min-h-0 md:aspect-[21/8] bg-gradient-to-r from-red-950 to-black rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 group flex flex-col justify-center">
+
+                    <!-- Animated Background Gradient -->
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-red-900/40 via-purple-900/20 to-blue-900/40 animate-gradient-shift">
+                    </div>
+                    <!-- Background Image with Gradient Overlay -->
+                    <div class="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-60 group-hover:scale-105 transition-transform duration-[2s]"
+                        style="background-image: url('https://images.unsplash.com/photo-1632296417714-c48d6db31846?auto=format&fit=crop&q=80&w=2000')">
+                    </div>
+                    <div class="absolute inset-0 bg-gradient-to-r from-black/95 via-black/50 to-transparent"></div>
+
+                    <!-- Content Container (Relative for mobile stacking) -->
+                    <div
+                        class="relative p-4 md:p-16 flex flex-col justify-center items-center md:items-start z-10 w-full text-center md:text-left">
+                        <!-- Live Badge -->
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="relative flex h-3 w-3">
+                                <span
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
+                            </span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-red-500">Live Now</span>
+                        </div>
+
+                        <h1
+                            class="text-4xl md:text-7xl font-black text-white italic tracking-tighter mb-2 leading-none">
+                            FORMULA 1 <span class="text-red-600">LIVE</span>
+                        </h1>
+                        <p class="text-gray-300 text-sm md:text-lg max-w-lg mb-6 font-medium leading-relaxed">
+                            Watch the 2026 season live. Practice, Qualifying and the Grand Prix from <span
+                                class="text-white"
+                                x-text="f1LiveData.nextRace ? f1LiveData.nextRace.location : 'Las Vegas'"></span>.
+                        </p>
+
+                        <!-- Countdown Timer -->
+                        <div class="mb-6 flex gap-2 md:gap-3 flex-wrap">
+                            <div
+                                class="text-center bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 min-w-[60px]">
+                                <div class="text-xl md:text-2xl font-black text-white" x-text="countdown.days">0</div>
+                                <div class="text-[9px] md:text-[10px] text-gray-400 uppercase font-bold">Days</div>
+                            </div>
+                            <div
+                                class="text-center bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 min-w-[60px]">
+                                <div class="text-xl md:text-2xl font-black text-white" x-text="countdown.hours">0</div>
+                                <div class="text-[9px] md:text-[10px] text-gray-400 uppercase font-bold">Hours</div>
+                            </div>
+                            <div
+                                class="text-center bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 min-w-[60px]">
+                                <div class="text-xl md:text-2xl font-black text-white" x-text="countdown.minutes">0
+                                </div>
+                                <div class="text-[9px] md:text-[10px] text-gray-400 uppercase font-bold">Mins</div>
+                            </div>
+                            <div
+                                class="text-center bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 min-w-[60px]">
+                                <div class="text-xl md:text-2xl font-black text-white" x-text="countdown.seconds">0
+                                </div>
+                                <div class="text-[9px] md:text-[10px] text-gray-400 uppercase font-bold">Secs</div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-row gap-2 items-center justify-center md:justify-start w-full mt-2">
+                            <button @click="openF1StreamPlayer()"
+                                class="liquid-button primary px-6 py-2 text-sm shadow-lg group">
+                                <svg class="w-4 h-4 mr-1.5 fill-black group-hover:scale-110 transition-transform"
+                                    viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                Watch Live
+                            </button>
+                            <button
+                                @click="document.getElementById('raceSchedule').scrollIntoView({ behavior: 'smooth' })"
+                                class="liquid-button secondary px-5 py-2 text-sm backdrop-blur-sm group">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-4 h-4 mr-1.5 group-hover:rotate-12 transition-transform" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Schedule
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Background "F1" Watermark -->
+                    <div
+                        class="absolute right-[-20px] bottom-[-40px] opacity-10 font-black text-[150px] md:text-[250px] italic text-white leading-none select-none pointer-events-none">
+                        F1
+                    </div>
+                </div>
+
+
+                <!-- 2. Highlights Gallery -->
+                <div class="mt-8">
+                    <div class="flex items-center gap-4 mb-6">
+                        <h2 class="text-2xl md:text-3xl font-black text-white tracking-tight drop-shadow-lg">Latest
+                            Highlights <span class="text-gray-400 text-lg font-normal ml-2 hidden md:inline">Official
+                                Formula 1
+                                Channel</span></h2>
+                    </div>
+
+                    <!-- DESKTOP: Horizontal Scroll -->
+                    <div class="hidden md:block movies-section"
+                        style="position: relative; margin-bottom: 0; padding-left: 0;"
+                        x-data="{ rowId: 'f1-highlights-row' }" x-init="initScrollState(rowId)">
+
+                        <!-- Loading State -->
+                        <template x-if="loadingHighlights">
+                            <div class="flex justify-center items-center py-12">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                            </div>
+                        </template>
+
+                        <!-- Scroll Left Button -->
+                        <button x-show="!loadingHighlights" @click="scrollRow(rowId, -1)" class="scroll-button left">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                            </svg>
+                        </button>
+
+                        <!-- Horizontal Scroll Container -->
+                        <div :id="rowId" class="movies-row custom-scrollbar" style="padding: 0.5rem 0; gap: 1.5rem;">
+                            <template x-for="video in f1Highlights" :key="video.id">
+                                <div @click="playGlobalVideo('https://www.youtube.com/embed/' + video.id)"
+                                    class="flex-none w-72 md:w-80 group cursor-pointer">
+                                    <div
+                                        class="relative aspect-video rounded-xl overflow-hidden mb-3 ring-1 ring-white/10 bg-[#121212]">
+                                        <img :src="video.thumbnail" :alt="video.title"
+                                            class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                        <div
+                                            class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors">
+                                        </div>
+
+                                        <!-- Duration Badge -->
+                                        <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs font-bold px-1.5 py-0.5 rounded"
+                                            x-text="parseDuration(video.duration)"></div>
+
+                                        <!-- Play Overlay -->
+                                        <div
+                                            class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
+                                            <div
+                                                class="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300">
+                                                <svg class="w-5 h-5 text-white ml-0.5" fill="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path d="M8 5v14l11-7z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex gap-3 items-start">
+                                        <div
+                                            class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-700">
+                                            <div class="font-black text-[8px] text-white">F1</div>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-white font-bold text-sm leading-snug mb-1 group-hover:text-red-500 transition-colors line-clamp-2"
+                                                x-text="video.title"></h3>
+                                            <div class="text-xs text-gray-400 flex items-center gap-1">
+                                                <span>Highlights</span>
+                                                <span class="w-0.5 h-0.5 bg-gray-500 rounded-full mx-1"></span>
+                                                <span x-text="formatViewCount(video.viewCount) + ' views'"></span>
+                                                <span class="w-0.5 h-0.5 bg-gray-500 rounded-full mx-1"></span>
+                                                <span x-text="formatUploadDate(video.publishedAt)"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Scroll Right Button -->
+                        <button x-show="!loadingHighlights" @click="scrollRow(rowId, 1)" class="scroll-button right">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- MOBILE: Small Thumbnail Scroll (Redesigned v4) -->
+                    <div
+                        class="md:hidden flex overflow-x-auto snap-x snap-mandatory gap-3 pb-0 px-0 mt-4 custom-scrollbar hide-scrollbar-mobile">
+                        <template x-for="video in f1Highlights" :key="video.id">
+                            <div @click="playGlobalVideo('https://www.youtube.com/embed/' + video.id)"
+                                class="flex-none w-40 snap-start cursor-pointer group active:scale-95 transition-transform">
+                                <!-- Thumbnail -->
+                                <div
+                                    class="relative w-full aspect-[16/9] rounded-lg overflow-hidden bg-[#121212] mb-2 border border-white/10 shadow-sm">
+                                    <img :src="video.thumbnail" :alt="video.title"
+                                        class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity">
+                                    <!-- Play Overlay -->
+                                    <div class="absolute inset-0 flex items-center justify-center bg-black/10">
+                                        <div
+                                            class="w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10 shadow-lg">
+                                            <svg class="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <!-- Duration -->
+                                    <div class="absolute bottom-1 right-1 bg-black/80 text-[9px] font-bold text-white px-1 rounded-sm"
+                                        x-text="parseDuration(video.duration)"></div>
+                                </div>
+                                <!-- Text Below -->
+                                <h3 class="text-gray-200 font-bold text-xs leading-tight line-clamp-2"
+                                    x-text="video.title"></h3>
+                                <div class="text-[10px] text-gray-500 mt-1"
+                                    x-text="formatViewCount(video.viewCount) + ' • ' + formatUploadDate(video.publishedAt)">
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 3. Race Schedule Section -->
+                <div id="raceSchedule" class="mt-8 scroll-mt-20">
+                    <div class="flex flex-wrap items-end justify-between gap-4 mb-6 px-0 md:px-0">
+                        <h2 class="text-2xl md:text-3xl font-black text-white drop-shadow-lg leading-none"><span
+                                x-text="selectedYear"></span> Race
+                            Schedule</h2>
+
+                        <!-- Season Selector -->
+                        <div class="relative">
+                            <select x-model="selectedYear" @change="fetchRaceSchedule($event.target.value)"
+                                class="appearance-none bg-[#1a1a1a] text-white border border-white/20 rounded-lg py-2 pl-4 pr-10 text-sm font-bold focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 hover:bg-white/5 transition cursor-pointer">
+                                <template x-for="year in availableYears">
+                                    <option :value="year" x-text="year + ' Season'"></option>
+                                </template>
+                            </select>
+                            <div
+                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white/50">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DESKTOP: Grid View -->
+                <div class="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <!-- Race Weekend Cards -->
+                    <template x-for="(session, index) in f1LiveData.raceSessions" :key="session.session_key">
+                        <div
+                            class="bg-white/5 backdrop-blur-md rounded-xl p-4 ring-1 ring-white/10 transition-all duration-300 group relative overflow-hidden hover:scale-[1.02] hover:bg-white/10 shadow-lg">
+                            <!-- Status Stripe Removed for cleaner look -->
+                            <div class="absolute top-0 left-0 w-1 h-full bg-transparent"></div>
+
+                            <div class="pl-2 relative z-10">
+                                <!-- Header -->
+                                <div class="flex justify-between items-start mb-1">
+                                    <div class="text-[11px] text-gray-400 font-bold uppercase tracking-widest">
+                                        R<span x-text="index + 1"></span>
+                                    </div>
+                                    <div class="text-xs font-bold text-gray-400"
+                                        x-text="new Date(session.date_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })">
+                                    </div>
+                                </div>
+
+                                <!-- Race Name -->
+                                <h3 class="text-white font-black text-base leading-tight mb-1 truncate drop-shadow-md"
+                                    x-text="session.location"></h3>
+                                <div class="text-[10px] text-gray-500 truncate" x-text="session.circuit_short_name">
+                                </div>
+
+                                <!-- Time / Actions -->
+                                <div class="mt-2 pt-2 flex justify-between items-center h-8">
+                                    <template x-if="new Date(session.date_start) < new Date()">
+                                        <button @click.stop="loadReplays(session)" type="button"
+                                            class="cursor-pointer relative z-20 w-full text-xs font-bold bg-white/5 text-gray-400 border border-white/10 hover:bg-red-600 hover:border-red-600 hover:text-white py-1.5 rounded transition flex items-center justify-center gap-1.5 group/btn">
+                                            <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                            Watch Replay
+                                        </button>
+                                    </template>
+                                    <template x-if="!(new Date(session.date_start) < new Date())">
+                                        <div class="flex justify-between w-full items-center">
+                                            <span class="text-[10px] text-gray-600">Race</span>
+                                            <span class="text-[10px] text-white font-mono"
+                                                x-text="new Date(session.date_start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- MOBILE: Timeline List (Redesigned) -->
+                <div class="md:hidden flex flex-col gap-0 border-t border-white/10 mt-8 mx-0">
+                    <template x-for="(session, index) in f1LiveData.raceSessions" :key="session.session_key">
+                        <div
+                            class="py-4 border-b border-white/5 flex items-center justify-between group active:bg-white/5 transition-colors px-2">
+                            <!-- Left: Date -->
+                            <div class="flex flex-col items-center justify-center w-12 shrink-0 mr-4">
+                                <span class="text-xs font-bold text-gray-400 uppercase"
+                                    x-text="new Date(session.date_start).toLocaleDateString('en-US', { month: 'short' })"></span>
+                                <span class="text-xl font-black text-white"
+                                    x-text="new Date(session.date_start).getDate()"></span>
+                            </div>
+
+                            <!-- Middle: Info -->
+                            <div class="flex-1 min-w-0">
+                                <div class="text-[10px] text-red-500 font-bold uppercase tracking-widest mb-0.5">Round
+                                    <span x-text="index + 1"></span>
+                                </div>
+                                <h3 class="text-white font-bold text-base truncate" x-text="session.location"></h3>
+                                <div class="text-xs text-gray-500 truncate" x-text="session.circuit_short_name"></div>
+                            </div>
+
+                            <!-- Right: Action -->
+                            <div class="ml-4 shrink-0">
+                                <!-- Logic: Show Play for Past, Bell for Future. Fallback to Play if unsure -->
+                                <!-- Past Race: Watch Replay -->
+                                <template x-if="new Date(session.date_start) < new Date()">
+                                    <!-- Use 'Upcoming' style Glass Circle, but with Play Icon -->
+                                    <div @click.stop="loadReplays(session)"
+                                        class="flex items-center justify-center w-12 h-12 rounded-full bg-white/5 border border-white/5 cursor-pointer hover:bg-white/10 transition group/btn">
+                                        <svg class="w-5 h-5 text-white group-hover/btn:scale-110 transition-transform"
+                                            fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                </template>
+
+                                <template x-if="!(new Date(session.date_start) < new Date())">
+                                    <div
+                                        class="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-white/5 border border-white/5">
+                                        <svg class="w-4 h-4 text-gray-400 mb-1" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                        </svg>
+                                        <span class="text-[9px] font-mono text-gray-400 leading-none"
+                                            x-text="new Date(session.date_start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+
+
+
+                <!-- REPLAY SELECTION MODAL -->
+                <div x-show="showReplayModal"
+                    class="fixed inset-0 z-[2000] flex items-center justify-center transition-opacity duration-300 bg-black/80 backdrop-blur-sm"
+                    x-trap.inert.noscroll="showReplayModal" @keydown.escape.window="closeReplayModal()"
+                    x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200"
+                    x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" style="display: none;">
+
+                    <div class="glass-panel w-full max-w-2xl rounded-2xl p-8 shadow-2xl border border-white/10 relative overflow-hidden"
+                        @click.away="closeReplayModal()">
+
+                        <!-- Close Button -->
+                        <button @click="closeReplayModal()"
+                            class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <h2 class="text-2xl font-bold text-white mb-2"
+                            x-text="selectedReplayRace ? selectedReplayRace.location + ' Replays' : 'Race Replays'">
+                        </h2>
+                        <p class="text-sm text-gray-400 mb-6"
+                            x-text="'Select a replay source for ' + (selectedReplayRace ? selectedReplayRace.circuit_short_name : 'this race')">
+                        </p>
+
+                        <!-- Loading State -->
+                        <div x-show="loadingReplays" class="flex flex-col items-center justify-center py-12">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mb-4"></div>
+                            <span class="text-gray-400 text-sm">Searching for replays...</span>
+                        </div>
+
+                        <!-- No Replays Found -->
+                        <div x-show="!loadingReplays && availableReplays.length === 0"
+                            class="text-center py-8 text-gray-500">
+                            <p>No replays found for this race.</p>
+                        </div>
+
+                        <!-- Replay List -->
+                        <div x-show="!loadingReplays && availableReplays.length > 0"
+                            class="grid gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                            <template x-for="(replay, index) in availableReplays" :key="index">
+                                <button @click="playReplay(replay)"
+                                    class="w-full text-left bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl p-4 transition flex items-center justify-between group">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center text-red-500 group-hover:bg-red-600 group-hover:text-white transition">
+                                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="text-white font-medium"
+                                                x-text="replay.title || 'Stream ' + (index + 1)">
+                                            </div>
+                                            <div class="text-xs text-gray-500" x-text="replay.quality || 'HD'"></div>
+                                        </div>
+                                    </div>
+                                    <svg class="w-5 h-5 text-gray-600 group-hover:text-white transition transform group-hover:translate-x-1"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TOAST NOTIFICATIONS -->
+                <div class="fixed bottom-5 right-5 z-[200] flex flex-col gap-2" x-data="{ toasts: [] }"
+                    @show-toast.window="toasts.push({id: Date.now(), msg: $event.detail.message, type: $event.detail.type || 'success'}); setTimeout(() => { toasts.shift() }, 3000)">
+                    <template x-for="toast in toasts" :key="toast.id">
+                        <div class="px-6 py-3 rounded-lg shadow-lg backdrop-blur-md border border-white/10 text-sm font-medium animate-bounce-in"
+                            :class="toast.type === 'error' ? 'bg-red-900/80 text-white' : 'bg-[#141414]/90 text-white border-l-4 border-l-green-500'">
+                            <span x-text="toast.msg"></span>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- STANDALONE VIDEO PLAYER MOVED TO GLOBAL BODY SCOPE -->
+
+
+            </div>
+        </div>
+
+
+
+        <!-- MAIN INFO MODAL -->
+        <div x-show="showInfoModal"
+            class="fixed inset-0 z-[110] flex items-center justify-center transition-opacity duration-300 bg-black/80 backdrop-blur-sm"
+            x-trap.inert.noscroll="showInfoModal" @keydown.escape.window="closeInfoModal()"
+            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" style="display: none;">
+
+
+
+
+            <!-- The Glass Container -->
+            <div class="modal-glass-container shadow-2xl transition-all duration-500 ease-in-out overflow-hidden flex flex-col"
+                :class="{
+                 'relative w-full max-w-4xl h-[90vh] rounded-[32px]': !isPlayingInModal,
+                 'fixed inset-0 z-[2000] w-full h-full rounded-none border-0 !p-0 !m-0': isPlayingInModal
+             }" @click.away="isPlayingInModal ? null : closeInfoModal()">
+
+                <!-- Inner Gradient for Depth (Blue/Sheldon vibe) -->
+                <div class="absolute inset-0 bg-gradient-to-tr from-[#050505] via-[#0a0a0a] to-blue-900/10 pointer-events-none -z-10"
+                    x-show="!isPlayingInModal"></div>
+
+
+
+                <template x-if="!isPlayingInModal && modalContent">
+                    <div class="h-full overflow-y-auto custom-scrollbar relative">
+                        <!-- Close Button -->
+                        <button @click="closeInfoModal()"
+                            class="absolute top-6 right-6 p-2.5 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition z-50 border border-white/10 group">
+                            <svg class="w-6 h-6 text-gray-300 group-hover:text-white" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <!-- Hero Backdrop -->
+                        <div class="relative w-full aspect-video md:aspect-[2.35/1]">
+                            <img :src="modalContent.id === 66732 ? (window.innerWidth < 768 ? 'assets/img/stmbg.webp' : 'assets/img/stbg.webp') : (modalContent.backdrop_path ? (modalContent.backdrop_path.startsWith('http') ? modalContent.backdrop_path : 'https://image.tmdb.org/t/p/original' + modalContent.backdrop_path) : 'https://placehold.co/1280x720/181818/4D4D4D?text=No+Image')"
+                                class="w-full h-full object-cover">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent">
+                            </div>
+
+                            <div class="absolute bottom-0 left-0 px-8 md:px-12 pb-0 md:pb-[10px] w-full max-w-4xl">
+                                <!-- Title/Logo -->
+                                <!-- Custom Stranger Things Logo -->
+                                <template x-if="modalContent.id === 66732">
+                                    <div x-data="{ isMobile: window.innerWidth < 768 }"
+                                        @resize.window="isMobile = window.innerWidth < 768">
+                                        <img :src="isMobile ? 'assets/icons/stlg-mobile.png' : 'assets/icons/stlg.png'"
+                                            :class="isMobile ? 'object-contain mb-6 drop-shadow-2xl' : 'h-32 md:h-20 object-contain mb-6 drop-shadow-2xl'"
+                                            :style="isMobile ? 'height: auto !important; max-height: 220px !important; width: auto !important; max-width: 90% !important; display: block !important;' : ''">
+                                    </div>
+                                </template>
+                                <!-- Custom Uploaded Logo -->
+                                <template x-if="modalContent.logo_path">
+                                    <div x-data="{ isMobile: window.innerWidth < 768 }"
+                                        @resize.window="isMobile = window.innerWidth < 768">
+                                        <img :src="modalContent.logo_path"
+                                            :class="isMobile ? 'object-contain mb-6 drop-shadow-2xl' : 'h-24 md:h-32 object-contain mb-6 drop-shadow-2xl'"
+                                            :style="isMobile ? 'height: auto !important; max-height: 180px !important; width: auto !important; max-width: 85% !important; display: block !important;' : ''">
+                                    </div>
+                                </template>
+                                <!-- TMDB Logo for other content -->
+                                <template
+                                    x-if="modalContent.id !== 66732 && !modalContent.logo_path && modalContent.images?.logos?.find(l => l.iso_639_1 === 'en')">
+                                    <div x-data="{ isMobile: window.innerWidth < 768 }"
+                                        @resize.window="isMobile = window.innerWidth < 768">
+                                        <img :src="'https://image.tmdb.org/t/p/w500' + modalContent.images.logos.find(l => l.iso_639_1 === 'en').file_path"
+                                            :class="isMobile ? 'object-contain mb-6 drop-shadow-2xl' : 'h-24 md:h-32 object-contain mb-6 drop-shadow-2xl'"
+                                            :style="isMobile ? 'height: auto !important; max-height: 180px !important; width: auto !important; max-width: 85% !important; display: block !important;' : ''">
+                                    </div>
+                                </template>
+                                <!-- Fallback to text title if no logo -->
+                                <template
+                                    x-if="modalContent.id !== 66732 && !modalContent.logo_path && !modalContent.images?.logos?.find(l => l.iso_639_1 === 'en')">
+                                    <h2 class="text-4xl md:text-7xl font-black mb-6 tracking-tight text-white drop-shadow-xl leading-none"
+                                        x-text="modalContent.title || modalContent.name"></h2>
+                                </template>
+
+                                <!-- Meta -->
+                                <div class="flex items-center gap-4 text-sm md:text-base font-medium text-gray-200 mb-8"
+                                    style="margin-bottom: 20px;">
+                                    <template x-if="modalContent.original_private_item">
+                                        <span
+                                            class="text-black bg-white px-2 py-0.5 rounded font-bold text-xs uppercase tracking-wide">Private</span>
+                                    </template>
+                                    <template x-if="!modalContent.original_private_item">
+                                        <span class="text-green-400 font-bold"
+                                            x-text="(modalContent.vote_average * 10).toFixed(0) + '% Match'"></span>
+                                    </template>
+
+                                    <span
+                                        x-text="(modalContent.release_date || modalContent.first_air_date || '').substring(0,4)"></span>
+
+                                    <!-- Private Content Badges -->
+                                    <template x-if="modalContent.original_private_item?.badges">
+                                        <div class="flex gap-2">
+                                            <template x-for="badge in modalContent.original_private_item.badges"
+                                                :key="badge">
+                                                <span class="border border-white/30 px-2 py-0.5 rounded text-xs"
+                                                    x-text="badge"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- Standard fallback for valid TMDB content (non-private) -->
+                                    <template x-if="!modalContent.original_private_item">
+                                        <span class="border border-white/30 px-2 py-0.5 rounded text-xs">HD</span>
+                                    </template>
+
+                                    <span x-show="modalContent.number_of_seasons"
+                                        x-text="modalContent.number_of_seasons + ' Seasons'"></span>
+                                </div>
+
+                                <!-- Buttons -->
+                                <div class="flex gap-4">
+                                    <button @click="playFromModal(modalContent)"
+                                        class="liquid-button primary px-7 py-2 text-base font-bold shadow-lg hover:shadow-white/20">
+                                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                d="M4 2.69127C4 1.93067 4.81547 1.44851 5.48192 1.81506L22.4069 11.1238C23.0977 11.5037 23.0977 12.4963 22.4069 12.8762L5.48192 22.1849C4.81546 22.5515 4 22.0693 4 21.3087V2.69127Z">
+                                            </path>
+                                        </svg>
+                                        Play
+                                    </button>
+                                    <button class="liquid-button secondary px-7 py-2 text-base font-bold"
+                                        @click="toggleWatchLater(modalContent)">
+                                        <svg x-show="!isInWatchLater(modalContent)" class="w-5 h-5 mr-2" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        <svg x-show="isInWatchLater(modalContent)" class="w-5 h-5 mr-2 text-green-400"
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span x-text="isInWatchLater(modalContent) ? 'Added' : 'My List'"></span>
+                                    </button>
+                                </div>
+
+
+                            </div>
+                        </div>
+
+                        <!-- Details Body -->
+                        <div
+                            class="px-8 md:px-12 pt-[20px] md:pt-8 pb-8 md:pb-12 grid md:grid-cols-3 gap-12 bg-[#0a0a0a]/30">
+                            <div class="md:col-span-2">
+
+
+                                <h3 class="text-xl font-bold mb-3 text-white">Overview</h3>
+                                <p class="text-lg text-gray-300 leading-relaxed font-light mb-10"
+                                    x-text="modalContent.overview"></p>
+
+
+
+                                <!-- Episodes Section if TV -->
+                                <template x-if="modalContent.media_type === 'tv' && modalContent.seasons_list">
+                                    <div class="mt-8 pt-8 border-t border-white/10">
+                                        <div class="flex justify-between items-center mb-6">
+                                            <h3 class="text-2xl font-bold">Episodes</h3>
+                                            <div class="relative">
+                                                <select x-model="modalSelectedSeason"
+                                                    @change="fetchEpisodesForModal(modalContent.id, $event.target.value)"
+                                                    class="appearance-none bg-white/10 border border-white/20 text-white rounded-lg px-6 py-2 pr-10 text-sm focus:outline-none focus:border-white/40 cursor-pointer hover:bg-white/20 transition">
+                                                    <template x-for="season in modalContent.seasons_list"
+                                                        :key="season.season_number">
+                                                        <option :value="season.season_number" x-text="season.name"
+                                                            class="bg-gray-900"></option>
+                                                    </template>
+                                                </select>
+                                                <div
+                                                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <template x-if="loadingEpisodes">
+                                                <div class="text-center py-10 text-gray-500 animate-pulse">Loading
+                                                    episodes...</div>
+                                            </template>
+                                            <template x-for="(episode, idx) in episodesForModal" :key="episode.id">
+                                                <div @click="playFromModal(modalContent, modalSelectedSeason, episode.episode_number)"
+                                                    class="flex flex-col sm:flex-row gap-4 p-4 rounded-xl hover:bg-white/5 cursor-pointer transition group border border-transparent hover:border-white/5">
+                                                    <div
+                                                        class="w-full sm:w-48 aspect-video bg-gray-800 rounded-lg overflow-hidden relative flex-shrink-0 shadow-lg">
+                                                        <img :src="episode.still_path ? 'https://image.tmdb.org/t/p/w300'+episode.still_path : 'https://placehold.co/300x169/222/fff?text=No+Img'"
+                                                            class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                                                        <div
+                                                            class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                                            <svg class="w-8 h-8 text-white" fill="currentColor"
+                                                                viewBox="0 0 24 24">
+                                                                <path
+                                                                    d="M4 2.69127C4 1.93067 4.81547 1.44851 5.48192 1.81506L22.4069 11.1238C23.0977 11.5037 23.0977 12.4963 22.4069 12.8762L5.48192 22.1849C4.81546 22.5515 4 22.0693 4 21.3087V2.69127Z">
+                                                                </path>
+                                                            </svg>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="flex justify-between items-start mb-2">
+                                                            <h4 class="font-bold text-gray-200 group-hover:text-white text-lg truncate pr-4"
+                                                                x-text="episode.episode_number + '. ' + episode.name">
+                                                            </h4>
+                                                            <span
+                                                                class="text-xs text-gray-500 font-mono whitespace-nowrap"
+                                                                x-text="episode.runtime ? episode.runtime + 'm' : ''"></span>
+                                                        </div>
+                                                        <p class="text-sm text-gray-400 line-clamp-3 leading-relaxed"
+                                                            x-text="episode.overview"></p>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                            </div>
+
+                            <div class="space-y-8">
+                                <div>
+                                    <h4 class="text-gray-500 text-sm font-bold uppercase tracking-wider mb-2">Genres
+                                    </h4>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="genre in modalContent.genres" :key="genre.id">
+                                            <span
+                                                class="text-sm text-gray-300 bg-white/5 border border-white/10 px-3 py-1 rounded-full"
+                                                x-text="genre.name"></span>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="text-gray-500 text-sm font-bold uppercase tracking-wider mb-2">Cast</h4>
+                                    <div class="flex flex-wrap gap-3">
+                                        <template x-for="person in modalContent.credits?.cast?.slice(0,6)"
+                                            :key="person.id">
+                                            <span
+                                                class="text-sm text-gray-300 block w-full truncate border-b border-white/5 pb-1"
+                                                x-text="person.name"></span>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div x-show="modalContent.credits?.crew?.find(c => c.job === 'Director')">
+                                    <h4 class="text-gray-500 text-sm font-bold uppercase tracking-wider mb-2">Director
+                                    </h4>
+                                    <span class="text-gray-200"
+                                        x-text="modalContent.credits?.crew?.find(c => c.job === 'Director')?.name"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Trailers & More Section -->
+                        <div class="px-4 md:px-12 pb-8 md:pb-12" x-show="modalContent.videos?.results?.length > 0">
+                            <div class="flex items-center gap-3 mb-4 md:mb-5">
+                                <h3 class="text-lg md:text-xl font-bold text-white">Trailers & More</h3>
+                            </div>
+                            <div class="flex overflow-x-auto gap-4 md:gap-5 custom-scrollbar pb-4 pr-4 md:pr-8">
+                                <template
+                                    x-for="video in (modalContent.videos?.results || []).filter(v => v.site === 'YouTube')"
+                                    :key="video.id">
+                                    <div @click="window.open('https://www.youtube.com/watch?v=' + video.key, '_blank')"
+                                        class="flex-shrink-0 w-64 md:w-72 group cursor-pointer transition-transform duration-300 hover:scale-[1.02]">
+                                        <!-- Fixed height container to force aspect ratio -->
+                                        <div
+                                            class="relative w-full h-36 md:h-40 bg-[#222] rounded-xl overflow-hidden mb-2 md:mb-3 shadow-lg border border-white/10">
+                                            <img :src="'https://img.youtube.com/vi/' + video.key + '/hqdefault.jpg'"
+                                                class="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:scale-110"
+                                                loading="lazy">
+                                            <!-- Play Overlay -->
+                                            <div
+                                                class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[1px]">
+                                                <div
+                                                    class="w-10 h-10 md:w-12 md:h-12 bg-red-600 rounded-full flex items-center justify-center shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300">
+                                                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white ml-1"
+                                                        fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M8 5v14l11-7z" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                            <div x-show="video.type"
+                                                class="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-white/10"
+                                                x-text="video.type"></div>
+                                        </div>
+                                        <h4 class="text-sm font-semibold text-gray-200 group-hover:text-white leading-tight line-clamp-2"
+                                            x-text="video.name"></h4>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+            </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- AD BLOCKER POPUP (Compact Glassmorphism Design) -->
+    <div x-show="showAdBlockerPopup" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform scale-100"
+        x-transition:leave-end="opacity-0 transform scale-95"
+        class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        style="display: none;">
+        <div
+            class="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl border border-white/20 relative overflow-hidden">
+            <!-- Ambient Glow -->
+            <div
+                class="absolute -top-20 -right-20 w-40 h-40 bg-red-600/20 rounded-full blur-[80px] pointer-events-none">
+            </div>
+
+            <div class="relative z-10">
+                <!-- uBlock Origin Icon -->
+                <div class="flex justify-center mb-4">
+                    <div
+                        class="w-16 h-16 bg-gradient-to-br from-red-600 to-red-800 rounded-xl flex items-center justify-center shadow-lg">
+                        <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1 14.5v-9l7-2.8v6.39c0 3.85-2.6 7.4-6 8.41v-3z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Heading -->
+                <h3 class="text-white text-xl font-bold text-center mb-2">Ad Blocker Recommended</h3>
+
+                <!-- Message -->
+                <p class="text-gray-300 text-center text-sm leading-relaxed mb-6">
+                    While NovaFlix doesn't show ads, video providers sometimes do. Get uBlock Origin for an
+                    uninterrupted experience.
+                </p>
+
+                <!-- Download Buttons -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <!-- Chrome Button -->
+                    <a href="https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh?hl=en&pli=1"
+                        target="_blank" rel="noopener noreferrer"
+                        class="flex flex-col items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-semibold py-3 px-2 rounded-xl transition-all shadow-lg hover:shadow-white/10">
+                        <img src="assets/icons/chrome-icon.png" alt="Chrome" class="w-8 h-8 object-contain">
+                        <span class="text-xs">Chrome</span>
+                    </a>
+
+                    <!-- Safari Button -->
+                    <a href="https://apps.apple.com/us/app/ublock-origin-lite/id6745342698" target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex flex-col items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-semibold py-3 px-2 rounded-xl transition-all shadow-lg hover:shadow-white/10">
+                        <img src="assets/icons/safari-icon.png" alt="Safari" class="w-8 h-8 object-contain">
+                        <span class="text-xs">Safari</span>
+                    </a>
+                </div>
+
+                <!-- Continue Link -->
+                <button @click="dismissAdBlockerPopup()"
+                    class="w-full text-gray-400 hover:text-white text-xs transition-colors text-center">
+                    Continue to NovaFlix (Don't show again)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Bottom Navigation (Moved here to be persistent) -->
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-3 w-full max-w-[90%] justify-center px-2 md:hidden"
+        x-show="!mobileDetailOpen && !showInfoModal">
+        <div
+            class="flex-1 max-w-[320px] h-16 bg-[#141414]/80 backdrop-blur-[20px] rounded-[32px] border border-white/10 flex items-center justify-between px-6 shadow-2xl">
+            <button
+                @click="(currentTab === 'home' || currentTab === 'movies') ? updateBannerWithRandomItem() : (currentTab = 'movies', currentPage = 1, fetchAndBuildContent(), window.scrollTo(0,0))"
+                class="flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                :class="currentTab === 'home' || currentTab === 'movies' ? 'text-white' : 'text-white/40'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                </svg>
+            </button>
+            <button @click="currentTab = 'shows'; currentPage = 1; fetchAndBuildContent(); window.scrollTo(0,0);"
+                class="flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                :class="currentTab === 'shows' ? 'text-white' : 'text-white/40'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            </button>
+            <button @click="currentTab = 'f1'; window.scrollTo(0,0);"
+                class="flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                :class="currentTab === 'f1' ? 'text-white' : 'text-white/40'">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </button>
+            <button @click="currentTab = 'mylist'; currentPage = 1; fetchAndBuildContent(); window.scrollTo(0,0);"
+                class="flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                :class="currentTab === 'mylist' ? 'text-white' : 'text-white/40'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+            </button>
+        </div>
+
+        <button @click="currentTab = 'search'; window.scrollTo(0,0);"
+            class="w-16 h-16 bg-[#141414]/80 backdrop-blur-[20px] rounded-full border border-white/10 flex items-center justify-center shadow-2xl active:scale-95 transition-transform"
+            :class="currentTab === 'search' ? 'text-white bg-white/20' : 'text-white'">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </button>
+    </div>
+    </div>
+
+    <!-- TOAST CONTAINER (Added!) -->
+    <div class="toast-container" x-data="{ toasts: [] }"
+        @show-toast.window="toasts.push({id: Date.now(), msg: $event.detail.message, type: $event.detail.type || 'success'}); setTimeout(() => { toasts.shift() }, 3000)">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="toast" :class="toast.type">
+                <span x-text="toast.msg"></span>
+            </div>
+        </template>
+    </div>
+
+    <footer x-show="currentTab === 'movies' || currentTab === 'shows' || currentTab === 'home'"
+        class="text-gray-400 py-4 md:py-6 mt-8 md:mt-12 pb-32 md:pb-6">
+        <div class="container mx-auto px-4 md:px-6 text-center">
+            <p class="text-xs md:text-sm">Nova doesn't store files, but provides links to external services. Legal
+                issues should be discussed with file providers and hosts. The files provided by video providers are
+                not
+                covered by Nova.</p>
+            <p class="text-xs md:text-sm mt-3"> A hobby project by <a href="https://www.instagram.com/Methsith7/"
+                    target="_blank" rel="noopener noreferrer" class="text-netflix-red hover:underline">Methsith7</a>,
+                inspired by <a href="https://github.com/ambr0sial/nova" target="_blank" rel="noopener noreferrer"
+                    class="text-netflix-red hover:underline">Nova</a>. </p>
+        </div>
+    </footer>
+
+    <script src="js/f1_logic.js"></script>
+    <script src="js/app.js"></script>
+
+
+
+    <!-- STANDALONE VIDEO PLAYER — default (movies, YouTube, F1 live, private) -->
+    <template x-if="isPlayingInModal && !f1ReplayPlayer">
+        <div class="fixed inset-0 z-[9999] w-screen h-screen bg-black flex flex-col pointer-events-auto">
+            <div class="relative flex-1 bg-black w-full h-full">
+                <iframe id="modalPlayerIframeNtflx"
+                    x-show="!isDirectVideo && !isVideoJs && modalPlayerUrl && modalPlayerUrl !== 'about:blank'"
+                    :src="modalPlayerUrl" class="w-full h-full border-0 absolute inset-0" allowfullscreen
+                    allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
+                <video id="modalPlayerVideo" x-show="isDirectVideo && !isVideoJs"
+                    class="w-full h-full absolute inset-0 object-contain" controls playsinline autoplay></video>
+                <video x-show="isVideoJs" id="hls-player" class="w-full h-full absolute inset-0 object-contain bg-black"
+                    controls autoplay playsinline preload="auto" controlslist="nodownload"></video>
+            </div>
+            <button @click="closeInfoModal()"
+                class="fixed top-6 right-6 p-3 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-black/80 transition z-[10000] group border border-white/20 pointer-events-auto shadow-2xl">
+                <svg class="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </template>
+
+    <!-- F1 REPLAY PLAYER — custom chrome only -->
+    <template x-if="isPlayingInModal && f1ReplayPlayer">
+        <div id="nova-player-root"
+            class="nova-player fixed inset-0 z-[9999] w-screen h-screen"
+            :class="{ 'nova-player--embed': playerMode === 'embed', 'nova-player--native': playerMode === 'native' }"
+            @mousemove="onPlayerActivity()"
+            @touchstart="onPlayerActivity()"
+            @keydown.escape.window="closeInfoModal()"
+            @keydown.window="onPlayerKeydown($event)">
+
+            <div class="nova-player__stage">
+                <iframe id="modalPlayerIframeNtflx"
+                    x-show="!isDirectVideo && !isVideoJs && modalPlayerUrl && modalPlayerUrl !== 'about:blank'"
+                    :src="modalPlayerUrl" allowfullscreen
+                    allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
+
+                <video id="modalPlayerVideo" x-show="isDirectVideo && !isVideoJs"
+                    playsinline autoplay @click="playerTogglePlay()"
+                    @waiting="playerLoading = true" @canplay="playerLoading = false"
+                    @play="playerPaused = false" @pause="playerPaused = true"></video>
+
+                <video x-show="isVideoJs" id="hls-player" autoplay playsinline preload="auto"
+                    @click="playerTogglePlay()"
+                    @waiting="playerLoading = true" @canplay="playerLoading = false"
+                    @play="playerPaused = false" @pause="playerPaused = true"></video>
+
+                <div class="nova-player__loading" x-show="playerLoading && playerMode === 'native'">
+                    <div class="nova-player__loading-spinner"></div>
+                </div>
+            </div>
+
+            <div class="nova-player__chrome"
+                :class="{ 'nova-player__chrome--hidden': !playerControlsVisible }">
+                <div class="nova-player__top">
+                    <div class="flex items-center min-w-0 flex-1">
+                        <span class="nova-player__badge" x-show="playerMode === 'native'">HD</span>
+                        <span class="nova-player__title" x-text="playerTitle || 'Now Playing'"></span>
+                    </div>
+                    <button type="button" class="nova-player__btn" @click="playerToggleFullscreen()"
+                        title="Fullscreen" aria-label="Fullscreen">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                    </button>
+                    <button type="button" class="nova-player__btn" @click="closeInfoModal()" title="Close"
+                        aria-label="Close">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <button type="button" class="nova-player__center-play"
+                    :class="{ 'nova-player__center-play--hidden': !playerPaused || playerMode === 'embed' }"
+                    @click="playerTogglePlay()" aria-label="Play">
+                    <svg class="w-10 h-10 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                </button>
+
+                <div class="nova-player__bottom">
+                    <div class="nova-player__progress-wrap" @click="playerSeek($event)"
+                        @mousedown="playerStartSeek($event)" @touchstart.prevent="playerStartSeek($event)">
+                        <div class="nova-player__progress-track">
+                            <div class="nova-player__progress-buffer" :style="'width:' + playerBufferPercent + '%'">
+                            </div>
+                            <div class="nova-player__progress-fill" :style="'width:' + playerProgressPercent + '%'">
+                            </div>
+                            <div class="nova-player__progress-thumb" :style="'left:' + playerProgressPercent + '%'">
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="nova-player__embed-hint">Use the embedded player controls inside the frame</p>
+
+                    <div class="nova-player__controls-row">
+                        <button type="button" class="nova-player__btn" @click="playerTogglePlay()"
+                            :title="playerPaused ? 'Play' : 'Pause'" aria-label="Play or pause">
+                            <svg x-show="playerPaused" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                            <svg x-show="!playerPaused" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                            </svg>
+                        </button>
+
+                        <button type="button" class="nova-player__btn" @click="playerSkip(-10)" title="Back 10s"
+                            aria-label="Back 10 seconds">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+                            </svg>
+                        </button>
+
+                        <button type="button" class="nova-player__btn" @click="playerSkip(10)" title="Forward 10s"
+                            aria-label="Forward 10 seconds">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
+                            </svg>
+                        </button>
+
+                        <div class="nova-player__volume">
+                            <button type="button" class="nova-player__btn" @click="playerToggleMute()"
+                                :title="playerMuted ? 'Unmute' : 'Mute'" aria-label="Mute">
+                                <!-- High volume -->
+                                <svg x-show="!playerMuted && playerVolume > 0.5" class="w-5 h-5" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                                </svg>
+                                <!-- Low volume -->
+                                <svg x-show="!playerMuted && playerVolume > 0 && playerVolume <= 0.5"
+                                    class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                                </svg>
+                                <!-- Muted -->
+                                <svg x-show="playerMuted || playerVolume === 0" class="w-5 h-5" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                    <line x1="23" y1="9" x2="17" y2="15" />
+                                    <line x1="17" y1="9" x2="23" y2="15" />
+                                </svg>
+                            </button>
+                            <input type="range" min="0" max="1" step="0.05" :value="playerVolume"
+                                @input="playerSetVolume($event.target.value)">
+                        </div>
+
+                        <span class="nova-player__time"
+                            x-text="playerFormatTime(playerCurrentTime) + ' / ' + playerFormatTime(playerDuration)"></span>
+
+                        <div class="nova-player__spacer"></div>
+
+                        <button type="button" class="nova-player__btn" @click="playerToggleFullscreen()"
+                            title="Fullscreen" aria-label="Fullscreen">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+
+</body>
+
+</html>
